@@ -25,7 +25,7 @@ form_poc/
 ├── form_poc_backend/     Quarkus 3.23 · Java 21 · MongoDB
 └── form_poc_shared/      language-neutral contract
     ├── grammar/          JSON Schema for the condition grammar
-    ├── conformance/      85 cases — the FE↔BE contract
+    ├── conformance/      84 cases — the FE↔BE contract
     └── fixtures/         catalog, option sets, section templates,
                           blueprints, sections, one form
 ```
@@ -62,8 +62,11 @@ Seeding only populates an **empty** database, so studio edits survive a restart.
 
 ## The conformance suite
 
-`form_poc_shared/conformance/` holds 85 `{ expr, context, expected }` cases across operators,
-combinators, quantifiers, named conditions and non-answer context.
+`form_poc_shared/conformance/` holds 84 `{ expr, context, expected }` cases across operators (36),
+combinators (18), quantifiers (12), non-answer context (10) and named conditions (8).
+
+Both suites report 85 tests: the 84 cases plus one guard asserting the fixture set actually loaded,
+because an empty set would otherwise pass vacuously.
 
 **Both evaluators run these identical fixtures.** The frontend must evaluate expressions for instant
 reveal, and the backend must evaluate them to be the authority — so two implementations are
