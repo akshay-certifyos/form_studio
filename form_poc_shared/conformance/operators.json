@@ -1,0 +1,245 @@
+{
+  "suite": "operators",
+  "description": "Every operator in the registry: match, non-match, and unanswered input. Both the Java and the TypeScript evaluator must produce identical results for every case. This file is the contract between them, not shared code.",
+  "cases": [
+    {
+      "id": "eq-match",
+      "expr": { "field": "applicantDetails.providerType", "op": "eq", "value": "MD" },
+      "context": { "answers": { "applicantDetails.providerType": "MD" } },
+      "expected": true
+    },
+    {
+      "id": "eq-no-match",
+      "expr": { "field": "applicantDetails.providerType", "op": "eq", "value": "MD" },
+      "context": { "answers": { "applicantDetails.providerType": "DC" } },
+      "expected": false
+    },
+    {
+      "id": "eq-unanswered",
+      "expr": { "field": "applicantDetails.providerType", "op": "eq", "value": "MD" },
+      "context": { "answers": {} },
+      "expected": false
+    },
+    {
+      "id": "eq-empty-string-is-not-a-match",
+      "expr": { "field": "applicantDetails.providerType", "op": "eq", "value": "MD" },
+      "context": { "answers": { "applicantDetails.providerType": "" } },
+      "expected": false
+    },
+
+    {
+      "id": "neq-match",
+      "expr": { "field": "applicantDetails.providerType", "op": "neq", "value": "MD" },
+      "context": { "answers": { "applicantDetails.providerType": "DC" } },
+      "expected": true
+    },
+    {
+      "id": "neq-no-match",
+      "expr": { "field": "applicantDetails.providerType", "op": "neq", "value": "MD" },
+      "context": { "answers": { "applicantDetails.providerType": "MD" } },
+      "expected": false
+    },
+    {
+      "id": "neq-unanswered-is-true",
+      "note": "An unanswered field is not equal to the value, so neq holds. Asymmetric with eq by design — callers wanting 'answered and different' compose neq with exists.",
+      "expr": { "field": "applicantDetails.providerType", "op": "neq", "value": "MD" },
+      "context": { "answers": {} },
+      "expected": true
+    },
+
+    {
+      "id": "in-match",
+      "note": "The Florida Blue DEA exemption. CP-38192 R12.",
+      "expr": {
+        "field": "applicantDetails.specialty",
+        "op": "in",
+        "value": ["DC", "OD", "PhD", "Pathologist", "Radiologist"]
+      },
+      "context": { "answers": { "applicantDetails.specialty": "DC" } },
+      "expected": true
+    },
+    {
+      "id": "in-no-match",
+      "expr": {
+        "field": "applicantDetails.specialty",
+        "op": "in",
+        "value": ["DC", "OD", "PhD", "Pathologist", "Radiologist"]
+      },
+      "context": { "answers": { "applicantDetails.specialty": "Cardiology" } },
+      "expected": false
+    },
+    {
+      "id": "in-unanswered",
+      "expr": { "field": "applicantDetails.specialty", "op": "in", "value": ["DC", "OD"] },
+      "context": { "answers": {} },
+      "expected": false
+    },
+    {
+      "id": "in-empty-list-never-matches",
+      "expr": { "field": "applicantDetails.specialty", "op": "in", "value": [] },
+      "context": { "answers": { "applicantDetails.specialty": "DC" } },
+      "expected": false
+    },
+
+    {
+      "id": "nin-match",
+      "expr": { "field": "applicantDetails.providerType", "op": "nin", "value": ["PhD"] },
+      "context": { "answers": { "applicantDetails.providerType": "MD" } },
+      "expected": true
+    },
+    {
+      "id": "nin-no-match",
+      "expr": { "field": "applicantDetails.providerType", "op": "nin", "value": ["PhD"] },
+      "context": { "answers": { "applicantDetails.providerType": "PhD" } },
+      "expected": false
+    },
+
+    {
+      "id": "gt-numeric",
+      "expr": { "field": "malpractice.coverageAmount", "op": "gt", "value": 1000000 },
+      "context": { "answers": { "malpractice.coverageAmount": 2000000 } },
+      "expected": true
+    },
+    {
+      "id": "gt-numeric-equal-is-false",
+      "expr": { "field": "malpractice.coverageAmount", "op": "gt", "value": 1000000 },
+      "context": { "answers": { "malpractice.coverageAmount": 1000000 } },
+      "expected": false
+    },
+    {
+      "id": "gt-numeric-string-coerces",
+      "note": "Form answers arrive as strings. Both sides coerce when both operands parse as numbers.",
+      "expr": { "field": "malpractice.coverageAmount", "op": "gt", "value": 1000000 },
+      "context": { "answers": { "malpractice.coverageAmount": "2000000" } },
+      "expected": true
+    },
+    {
+      "id": "gte-equal-is-true",
+      "expr": { "field": "malpractice.coverageAmount", "op": "gte", "value": 1000000 },
+      "context": { "answers": { "malpractice.coverageAmount": 1000000 } },
+      "expected": true
+    },
+    {
+      "id": "lt-iso-date-lexicographic",
+      "note": "ISO-8601 dates compare correctly as strings, so no date parsing is required.",
+      "expr": { "field": "licensure.licenseExpiration", "op": "lt", "value": "2027-01-01" },
+      "context": { "answers": { "licensure.licenseExpiration": "2026-10-01" } },
+      "expected": true
+    },
+    {
+      "id": "lt-iso-date-after",
+      "expr": { "field": "licensure.licenseExpiration", "op": "lt", "value": "2027-01-01" },
+      "context": { "answers": { "licensure.licenseExpiration": "2028-03-15" } },
+      "expected": false
+    },
+    {
+      "id": "lte-equal-is-true",
+      "expr": { "field": "licensure.licenseExpiration", "op": "lte", "value": "2027-01-01" },
+      "context": { "answers": { "licensure.licenseExpiration": "2027-01-01" } },
+      "expected": true
+    },
+    {
+      "id": "gt-unanswered-is-false",
+      "note": "A comparison against nothing is false for all four ordering operators.",
+      "expr": { "field": "malpractice.coverageAmount", "op": "gt", "value": 1000000 },
+      "context": { "answers": {} },
+      "expected": false
+    },
+
+    {
+      "id": "exists-answered",
+      "expr": { "field": "malpractice.malpracticeCarrier", "op": "exists" },
+      "context": { "answers": { "malpractice.malpracticeCarrier": "The Doctors Company" } },
+      "expected": true
+    },
+    {
+      "id": "exists-unanswered",
+      "expr": { "field": "malpractice.malpracticeCarrier", "op": "exists" },
+      "context": { "answers": {} },
+      "expected": false
+    },
+    {
+      "id": "exists-empty-string-is-false",
+      "expr": { "field": "malpractice.malpracticeCarrier", "op": "exists" },
+      "context": { "answers": { "malpractice.malpracticeCarrier": "" } },
+      "expected": false
+    },
+    {
+      "id": "exists-empty-array-is-false",
+      "expr": { "field": "applicantDetails.languages", "op": "exists" },
+      "context": { "answers": { "applicantDetails.languages": [] } },
+      "expected": false
+    },
+
+    {
+      "id": "empty-unanswered",
+      "expr": { "field": "malpractice.malpracticeCarrier", "op": "empty" },
+      "context": { "answers": {} },
+      "expected": true
+    },
+    {
+      "id": "empty-answered",
+      "expr": { "field": "malpractice.malpracticeCarrier", "op": "empty" },
+      "context": { "answers": { "malpractice.malpracticeCarrier": "The Doctors Company" } },
+      "expected": false
+    },
+    {
+      "id": "empty-is-exact-negation-of-exists",
+      "expr": { "field": "malpractice.malpracticeCarrier", "op": "empty" },
+      "context": { "answers": { "malpractice.malpracticeCarrier": "" } },
+      "expected": true
+    },
+
+    {
+      "id": "matches-npi-format",
+      "expr": { "field": "applicantDetails.npi", "op": "matches", "value": "^\\d{10}$" },
+      "context": { "answers": { "applicantDetails.npi": "1234567893" } },
+      "expected": true
+    },
+    {
+      "id": "matches-npi-too-short",
+      "expr": { "field": "applicantDetails.npi", "op": "matches", "value": "^\\d{10}$" },
+      "context": { "answers": { "applicantDetails.npi": "12345" } },
+      "expected": false
+    },
+    {
+      "id": "matches-unanswered-is-false",
+      "expr": { "field": "applicantDetails.npi", "op": "matches", "value": "^\\d{10}$" },
+      "context": { "answers": {} },
+      "expected": false
+    },
+
+    {
+      "id": "contains-multiselect-match",
+      "note": "`contains` asks whether a multi-select ANSWER includes the value. Kept separate from `in` (which asks whether the answer is one of a list) so neither operator's meaning depends on the answer's shape. `contains` also exists in the production StepCondition type, so it is required for round-tripping.",
+      "expr": { "field": "applicantDetails.languages", "op": "contains", "value": "Spanish" },
+      "context": { "answers": { "applicantDetails.languages": ["English", "Spanish"] } },
+      "expected": true
+    },
+    {
+      "id": "contains-multiselect-no-match",
+      "expr": { "field": "applicantDetails.languages", "op": "contains", "value": "French" },
+      "context": { "answers": { "applicantDetails.languages": ["English", "Spanish"] } },
+      "expected": false
+    },
+    {
+      "id": "contains-on-a-string-is-substring",
+      "expr": { "field": "applicantDetails.lastName", "op": "contains", "value": "van" },
+      "context": { "answers": { "applicantDetails.lastName": "van Doren" } },
+      "expected": true
+    },
+    {
+      "id": "contains-unanswered-is-false",
+      "expr": { "field": "applicantDetails.languages", "op": "contains", "value": "Spanish" },
+      "context": { "answers": {} },
+      "expected": false
+    },
+    {
+      "id": "in-does-not-look-inside-an-array-answer",
+      "note": "Guards the separation above: `in` compares the answer as a whole, so an array answer never matches a scalar list.",
+      "expr": { "field": "applicantDetails.languages", "op": "in", "value": ["Spanish"] },
+      "context": { "answers": { "applicantDetails.languages": ["English", "Spanish"] } },
+      "expected": false
+    }
+  ]
+}

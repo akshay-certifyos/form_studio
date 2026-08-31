@@ -1,0 +1,121 @@
+{
+  "_note": [
+    "Reusable section shapes. These are the templates the section definitions in",
+    "section-definitions.json were instantiated from, and their ids/versions match the",
+    "sourceTemplateId/sourceTemplateVersion recorded there.",
+    "",
+    "Two are deliberately NOT in lockstep, so drift is demonstrable rather than uniformly clean:",
+    "  - st_applicant v4 omits boardCertNumber, which sd_applicant added locally -> ADDED_LOCALLY",
+    "  - st_licensure is v4 while sd_licensure records v3 and lacks licenseIssueDate",
+    "    -> behindTemplate + ADDED_IN_TEMPLATE",
+    "",
+    "Repetition sits on st_licensure because a licence list is inherently repeating. It is",
+    "absent from st_address on purpose: the same address template is placed twice in the real",
+    "form, repeating for practice locations and not for the billing address, so repetition is a",
+    "property of the placement rather than of the template."
+  ],
+  "sectionTemplates": [
+    {
+      "_id": "st_applicant",
+      "tenantId": null,
+      "key": "applicant",
+      "name": "Applicant Details",
+      "version": 4,
+      "status": "active",
+      "questions": [
+        { "key": "firstName", "catalogQuestionId": "q_first_name", "order": 10, "required": true, "layoutColumns": 6 },
+        { "key": "lastName", "catalogQuestionId": "q_last_name", "order": 20, "required": true, "layoutColumns": 6 },
+        { "key": "npi", "catalogQuestionId": "q_npi", "order": 30, "required": true, "layoutColumns": 6 },
+        { "key": "ssn", "catalogQuestionId": "q_ssn", "order": 40, "required": true, "layoutColumns": 6 },
+        { "key": "credentialingEmail", "catalogQuestionId": "q_cred_email", "order": 50, "required": true, "layoutColumns": 12 },
+        { "key": "providerType", "catalogQuestionId": "q_provider_type", "order": 60, "required": true, "layoutColumns": 6 },
+        { "key": "specialty", "catalogQuestionId": "q_specialty", "order": 70, "required": true, "layoutColumns": 6 },
+        { "key": "boardCertified", "catalogQuestionId": "q_board_certified", "order": 80, "required": true, "layoutColumns": 12 }
+      ]
+    },
+    {
+      "_id": "st_address",
+      "tenantId": null,
+      "key": "address",
+      "name": "Address",
+      "version": 2,
+      "status": "active",
+      "questions": [
+        { "key": "line1", "catalogQuestionId": "q_addr_line1", "order": 10, "required": true, "layoutColumns": 12 },
+        { "key": "line2", "catalogQuestionId": "q_addr_line2", "order": 20, "required": false, "layoutColumns": 12 },
+        { "key": "city", "catalogQuestionId": "q_addr_city", "order": 30, "required": true, "layoutColumns": 4 },
+        { "key": "state", "catalogQuestionId": "q_addr_state", "order": 40, "required": true, "layoutColumns": 4 },
+        { "key": "zip", "catalogQuestionId": "q_addr_zip", "order": 50, "required": true, "layoutColumns": 4 },
+        { "key": "phone", "catalogQuestionId": "q_practice_phone", "order": 60, "required": true, "layoutColumns": 6 },
+        { "key": "fax", "catalogQuestionId": "q_practice_fax", "order": 70, "required": false, "layoutColumns": 6 }
+      ]
+    },
+    {
+      "_id": "st_licensure",
+      "tenantId": null,
+      "key": "licensure",
+      "name": "Licensure",
+      "version": 4,
+      "intro": "List all active state licenses.",
+      "status": "active",
+      "repeating": { "min": 1, "max": 20, "itemLabel": "License" },
+      "questions": [
+        { "key": "licenseType", "catalogQuestionId": "q_lic_type", "order": 10, "required": true, "layoutColumns": 6 },
+        { "key": "licenseState", "catalogQuestionId": "q_lic_state", "order": 20, "required": true, "layoutColumns": 6 },
+        { "key": "licenseNumber", "catalogQuestionId": "q_lic_number", "order": 30, "required": true, "layoutColumns": 6 },
+        { "key": "licenseExpiration", "catalogQuestionId": "q_lic_expiration", "order": 40, "required": true, "layoutColumns": 6 },
+        { "key": "licenseIssueDate", "catalogQuestionId": "q_lic_issue_date", "order": 50, "required": false, "layoutColumns": 6 }
+      ]
+    },
+    {
+      "_id": "st_dea",
+      "tenantId": null,
+      "key": "dea",
+      "name": "DEA Registration",
+      "version": 1,
+      "status": "active",
+      "questions": [
+        { "key": "deaNumber", "catalogQuestionId": "q_dea_number", "order": 10, "required": true, "layoutColumns": 6 },
+        { "key": "deaExpiration", "catalogQuestionId": "q_dea_expiration", "order": 20, "required": true, "layoutColumns": 6 }
+      ]
+    },
+    {
+      "_id": "st_malpractice",
+      "tenantId": null,
+      "key": "malpractice",
+      "name": "Professional Liability Insurance",
+      "version": 2,
+      "status": "active",
+      "questions": [
+        { "key": "malpracticeCarrier", "catalogQuestionId": "q_mal_carrier", "order": 10, "required": true, "layoutColumns": 12 },
+        { "key": "policyNumber", "catalogQuestionId": "q_mal_policy", "order": 20, "required": true, "layoutColumns": 6 },
+        { "key": "policyExpiration", "catalogQuestionId": "q_mal_expiration", "order": 30, "required": true, "layoutColumns": 6 }
+      ]
+    },
+    {
+      "_id": "st_billing_setup",
+      "tenantId": null,
+      "key": "billing_setup",
+      "name": "Billing Setup",
+      "version": 1,
+      "status": "active",
+      "questions": [
+        { "key": "tin", "catalogQuestionId": "q_tin", "order": 10, "required": true, "layoutColumns": 6 },
+        { "key": "hasCaqhId", "catalogQuestionId": "q_has_caqh", "order": 20, "required": true, "layoutColumns": 6 },
+        { "key": "caqhId", "catalogQuestionId": "q_caqh_id", "order": 30, "required": true, "layoutColumns": 6 },
+        { "key": "billingSameAsPrimary", "catalogQuestionId": "q_billing_same", "order": 40, "required": true, "layoutColumns": 12 }
+      ]
+    },
+    {
+      "_id": "st_documents",
+      "tenantId": null,
+      "key": "documents",
+      "name": "Supporting Documents",
+      "version": 1,
+      "status": "active",
+      "questions": [
+        { "key": "curriculumVitae", "catalogQuestionId": "q_cv_upload", "order": 10, "required": true, "layoutColumns": 12 }
+      ]
+    }
+  ]
+}

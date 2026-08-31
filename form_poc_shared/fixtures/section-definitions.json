@@ -1,0 +1,152 @@
+{
+  "description": "Tenant sections, each created from a global template by copy-on-use. Note `sd_address`: ONE definition, placed twice by the form as Practice Location and Billing Address. That reuse is the entire reason a step exists as a separate concept — without step-scoped answers both placements would write to `line1` and the second address would destroy the first.",
+  "sections": [
+    {
+      "id": "sd_applicant",
+      "tenantId": "tenant_fl_blue",
+      "key": "applicantDetails",
+      "name": "Applicant Details",
+      "intro": "Tell us who you are. These details are matched against NPPES and the NPDB.",
+      "sourceTemplateId": "st_applicant",
+      "sourceTemplateVersion": 4,
+      "active": true,
+      "questions": [
+        { "key": "firstName",       "catalogQuestionId": "q_first_name",   "origin": "TEMPLATE", "order": 10, "required": true,  "layoutColumns": 6 },
+        { "key": "lastName",        "catalogQuestionId": "q_last_name",    "origin": "TEMPLATE", "order": 20, "required": true,  "layoutColumns": 6 },
+        { "key": "npi",             "catalogQuestionId": "q_npi",          "origin": "TEMPLATE", "order": 30, "required": true,  "layoutColumns": 6 },
+        { "key": "ssn",             "catalogQuestionId": "q_ssn",          "origin": "TEMPLATE", "order": 40, "required": true,  "layoutColumns": 6 },
+        { "key": "credentialingEmail", "catalogQuestionId": "q_cred_email", "origin": "TEMPLATE", "order": 50, "required": true, "layoutColumns": 12 },
+        { "key": "providerType",    "catalogQuestionId": "q_provider_type", "origin": "TEMPLATE", "order": 60, "required": true, "layoutColumns": 6 },
+        { "key": "specialty",       "catalogQuestionId": "q_specialty",    "origin": "TEMPLATE", "order": 70, "required": true,  "layoutColumns": 6 },
+        { "key": "boardCertified",  "catalogQuestionId": "q_board_certified", "origin": "TEMPLATE", "order": 80, "required": true, "layoutColumns": 12 },
+        {
+          "key": "boardCertNumber",
+          "catalogQuestionId": "q_board_cert_number",
+          "origin": "ADDED",
+          "order": 90,
+          "required": true,
+          "layoutColumns": 6,
+          "visibleWhen": { "field": "applicantDetails.boardCertified", "op": "eq", "value": "Yes" },
+          "note": "A question conditioned on a sibling in the SAME step. Legal for a question and illegal for a step — the distinction the analyzer's Level.QUESTION exists for."
+        }
+      ]
+    },
+    {
+      "id": "sd_address",
+      "tenantId": "tenant_fl_blue",
+      "key": "address",
+      "name": "Address",
+      "sourceTemplateId": "st_address",
+      "sourceTemplateVersion": 2,
+      "active": true,
+      "questions": [
+        { "key": "line1", "catalogQuestionId": "q_addr_line1", "origin": "TEMPLATE", "order": 10, "required": true,  "layoutColumns": 12 },
+        { "key": "line2", "catalogQuestionId": "q_addr_line2", "origin": "TEMPLATE", "order": 20, "required": false, "layoutColumns": 12 },
+        { "key": "city",  "catalogQuestionId": "q_addr_city",  "origin": "TEMPLATE", "order": 30, "required": true,  "layoutColumns": 6 },
+        { "key": "state", "catalogQuestionId": "q_addr_state", "origin": "TEMPLATE", "order": 40, "required": true,  "layoutColumns": 3 },
+        { "key": "zip",   "catalogQuestionId": "q_addr_zip",   "origin": "TEMPLATE", "order": 50, "required": true,  "layoutColumns": 3 },
+        { "key": "phone", "catalogQuestionId": "q_practice_phone", "origin": "TEMPLATE", "order": 60, "required": true, "layoutColumns": 6 },
+        { "key": "fax",   "catalogQuestionId": "q_practice_fax",   "origin": "TEMPLATE", "order": 70, "required": false, "layoutColumns": 6 }
+      ]
+    },
+    {
+      "id": "sd_billing_setup",
+      "tenantId": "tenant_fl_blue",
+      "key": "billingSetup",
+      "name": "Billing Setup",
+      "sourceTemplateId": "st_billing_setup",
+      "sourceTemplateVersion": 1,
+      "active": true,
+      "questions": [
+        { "key": "tin",       "catalogQuestionId": "q_tin",       "origin": "TEMPLATE", "order": 10, "required": true, "layoutColumns": 6 },
+        { "key": "hasCaqhId", "catalogQuestionId": "q_has_caqh",  "origin": "TEMPLATE", "order": 20, "required": true, "layoutColumns": 12 },
+        {
+          "key": "caqhId",
+          "catalogQuestionId": "q_caqh_id",
+          "origin": "TEMPLATE",
+          "order": 30,
+          "required": true,
+          "layoutColumns": 6,
+          "visibleWhen": { "field": "billingSetup.hasCaqhId", "op": "eq", "value": "Yes" }
+        },
+        { "key": "billingSameAsPrimary", "catalogQuestionId": "q_billing_same", "origin": "TEMPLATE", "order": 40, "required": true, "layoutColumns": 12 }
+      ]
+    },
+    {
+      "id": "sd_licensure",
+      "tenantId": "tenant_fl_blue",
+      "key": "licensure",
+      "name": "Licensure",
+      "intro": "List all professional licenses — past, current and pending.",
+      "sourceTemplateId": "st_licensure",
+      "sourceTemplateVersion": 3,
+      "active": true,
+      "questions": [
+        { "key": "licenseType",       "catalogQuestionId": "q_lic_type",       "origin": "TEMPLATE", "order": 10, "required": true, "layoutColumns": 6 },
+        { "key": "licenseState",      "catalogQuestionId": "q_lic_state",      "origin": "TEMPLATE", "order": 20, "required": true, "layoutColumns": 6 },
+        { "key": "licenseNumber",     "catalogQuestionId": "q_lic_number",     "origin": "TEMPLATE", "order": 30, "required": true, "layoutColumns": 6 },
+        { "key": "licenseExpiration", "catalogQuestionId": "q_lic_expiration", "origin": "TEMPLATE", "order": 40, "required": true, "layoutColumns": 6 }
+      ]
+    },
+    {
+      "id": "sd_dea",
+      "tenantId": "tenant_fl_blue",
+      "key": "deaRegistration",
+      "name": "DEA Registration",
+      "sourceTemplateId": "st_dea",
+      "sourceTemplateVersion": 1,
+      "active": true,
+      "questions": [
+        { "key": "deaNumber",     "catalogQuestionId": "q_dea_number",     "origin": "TEMPLATE", "order": 10, "required": true, "layoutColumns": 6 },
+        { "key": "deaExpiration", "catalogQuestionId": "q_dea_expiration", "origin": "TEMPLATE", "order": 20, "required": true, "layoutColumns": 6 }
+      ]
+    },
+    {
+      "id": "sd_malpractice",
+      "tenantId": "tenant_fl_blue",
+      "key": "malpractice",
+      "name": "Professional Liability Insurance",
+      "intro": "A PDF copy of your PLI face sheet is required for all providers.",
+      "sourceTemplateId": "st_malpractice",
+      "sourceTemplateVersion": 2,
+      "active": true,
+      "questions": [
+        { "key": "malpracticeCarrier", "catalogQuestionId": "q_mal_carrier",    "origin": "TEMPLATE", "order": 10, "required": true, "layoutColumns": 12 },
+        {
+          "key": "policyNumber",
+          "catalogQuestionId": "q_mal_policy",
+          "origin": "TEMPLATE",
+          "order": 20,
+          "required": true,
+          "layoutColumns": 6,
+          "visibleWhen": { "field": "malpractice.malpracticeCarrier", "op": "exists" }
+        },
+        { "key": "policyExpiration", "catalogQuestionId": "q_mal_expiration", "origin": "TEMPLATE", "order": 30, "required": true, "layoutColumns": 6 }
+      ]
+    },
+    {
+      "id": "sd_documents",
+      "tenantId": "tenant_fl_blue",
+      "key": "documents",
+      "name": "Supporting Documents",
+      "sourceTemplateId": "st_documents",
+      "sourceTemplateVersion": 1,
+      "active": true,
+      "questions": [
+        { "key": "curriculumVitae", "catalogQuestionId": "q_cv_upload", "origin": "TEMPLATE", "order": 10, "required": true, "layoutColumns": 12 }
+      ]
+    },
+    {
+      "id": "sd_attestation",
+      "tenantId": "tenant_fl_blue",
+      "key": "attestation",
+      "name": "Attestation",
+      "sourceTemplateId": null,
+      "sourceTemplateVersion": null,
+      "active": true,
+      "questions": [
+        { "key": "attestation", "catalogQuestionId": "q_attestation", "origin": "ADDED", "order": 10, "required": true, "layoutColumns": 12 }
+      ]
+    }
+  ]
+}

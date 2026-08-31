@@ -1,0 +1,143 @@
+{
+  "description": "The Florida Blue Recred Practitioner Application, as configuration.\n\nEvery rule here is real and documented in CP-38192, not invented:\n  - DEA Registration is hidden for the specialty exemptions (R12/R13)\n  - Billing Address needs hasCaqhId = Yes AND billingSameAsPrimary = No (R1-R4, the NSCP compound-AND shape)\n  - Licensure and Professional Liability are gated on provider type\n\nAnd note the two address steps. One section definition, two steps, two answer namespaces.",
+  "forms": [
+    {
+      "id": "fd_fl_blue_recred",
+      "tenantId": "tenant_fl_blue",
+      "formTemplateId": "ft_fl_blue_recred",
+      "name": "Florida Blue Recred Practitioner Application",
+      "entityType": "practitioner",
+      "sourceBlueprintId": "fb_practitioner_recred",
+      "sourceBlueprintVersion": 2,
+      "status": "DRAFT",
+
+      "namedConditions": [
+        {
+          "key": "specialtyExempt",
+          "label": "Specialty exempt from DEA requirements",
+          "expression": {
+            "field": "applicantDetails.specialty",
+            "op": "in",
+            "value": ["DC", "OD", "PhD", "Pathologist", "Radiologist"]
+          }
+        },
+        {
+          "key": "prescribingProviderType",
+          "label": "Provider type that can prescribe",
+          "expression": {
+            "field": "applicantDetails.providerType",
+            "op": "in",
+            "value": ["MD", "DO", "DPM"]
+          }
+        }
+      ],
+
+      "steps": [
+        {
+          "key": "applicantDetails",
+          "sectionDefinitionId": "sd_applicant",
+          "order": 10,
+          "enabled": true,
+          "group": "Applicant Information",
+          "titleOverride": null,
+          "visibleWhen": null
+        },
+        {
+          "key": "practiceLocation",
+          "sectionDefinitionId": "sd_address",
+          "order": 20,
+          "enabled": true,
+          "group": "Applicant Information",
+          "titleOverride": "Practice Location",
+          "repeating": { "min": 1, "max": 10, "itemLabel": "Location" },
+          "visibleWhen": null
+        },
+        {
+          "key": "licensure",
+          "sectionDefinitionId": "sd_licensure",
+          "order": 30,
+          "enabled": true,
+          "group": "Credentials",
+          "titleOverride": null,
+          "repeating": { "min": 1, "max": 20, "itemLabel": "License" },
+          "visibleWhen": {
+            "field": "applicantDetails.providerType",
+            "op": "nin",
+            "value": ["PhD"]
+          }
+        },
+        {
+          "key": "deaRegistration",
+          "sectionDefinitionId": "sd_dea",
+          "order": 40,
+          "enabled": true,
+          "group": "Credentials",
+          "titleOverride": null,
+          "visibleWhen": { "not": { "ref": "specialtyExempt" } }
+        },
+        {
+          "key": "malpractice",
+          "sectionDefinitionId": "sd_malpractice",
+          "order": 50,
+          "enabled": true,
+          "group": "Credentials",
+          "titleOverride": null,
+          "visibleWhen": { "ref": "prescribingProviderType" }
+        },
+        {
+          "key": "billingSetup",
+          "sectionDefinitionId": "sd_billing_setup",
+          "order": 60,
+          "enabled": true,
+          "group": "Billing",
+          "titleOverride": null,
+          "visibleWhen": null
+        },
+        {
+          "key": "billingAddress",
+          "sectionDefinitionId": "sd_address",
+          "order": 70,
+          "enabled": true,
+          "group": "Billing",
+          "titleOverride": "Billing Address",
+          "visibleWhen": {
+            "all": [
+              { "field": "billingSetup.hasCaqhId", "op": "eq", "value": "Yes" },
+              { "field": "billingSetup.billingSameAsPrimary", "op": "eq", "value": "No" }
+            ]
+          }
+        },
+        {
+          "key": "documents",
+          "sectionDefinitionId": "sd_documents",
+          "order": 80,
+          "enabled": true,
+          "group": "Supporting Documents",
+          "titleOverride": null,
+          "visibleWhen": null
+        },
+        {
+          "key": "attestation",
+          "sectionDefinitionId": "sd_attestation",
+          "order": 90,
+          "enabled": true,
+          "group": "Attestation",
+          "titleOverride": null,
+          "visibleWhen": null
+        }
+      ],
+
+      "hardStops": [
+        {
+          "key": "noActiveLicense",
+          "when": {
+            "every": "licensure",
+            "where": { "field": "@item.licenseExpiration", "op": "lt", "value": "2026-09-01" }
+          },
+          "message": "Every license on file has expired. An active state license is required before this application can be submitted.",
+          "evaluateOn": "next"
+        }
+      ]
+    }
+  ]
+}

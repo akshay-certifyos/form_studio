@@ -1,0 +1,734 @@
+{
+  "description": "The question catalog. Labels and help text taken from the real Florida Blue Recred and Certify credentialing forms rather than invented, so the reuse measurement means something \u2014 hand-written fixtures unconsciously fit whatever the model can already express.\n\nplatformMapping is defined once here, globally. It is what collapses N tenants x M forms of hand-maintained fieldMappings string paths into one table.\n\nOne entry is deliberately left `proposed` to exercise the promotion gate that keeps the catalog from filling with near-duplicates.",
+  "questions": [
+    {
+      "id": "q_first_name",
+      "key": "firstName",
+      "label": "First name",
+      "responseType": "text",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "required"
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "firstName"
+      },
+      "tags": [
+        "identity"
+      ]
+    },
+    {
+      "id": "q_last_name",
+      "key": "lastName",
+      "label": "Last name",
+      "responseType": "text",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "required"
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "lastName"
+      },
+      "tags": [
+        "identity"
+      ]
+    },
+    {
+      "id": "q_npi",
+      "key": "npi",
+      "label": "National Provider Identifier (NPI)",
+      "helpText": "Your 10-digit individual (Type 1) NPI. Look it up at npiregistry.cms.hhs.gov",
+      "responseType": "text",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "length",
+          "params": {
+            "exact": 10
+          }
+        },
+        {
+          "rule": "npiChecksum"
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "npi",
+        "facility": "npi"
+      },
+      "aliases": [
+        "NPI",
+        "NPI Number",
+        "National Provider ID",
+        "Individual NPI",
+        "Type 1 NPI"
+      ],
+      "tags": [
+        "identity",
+        "credentialing"
+      ]
+    },
+    {
+      "id": "q_ssn",
+      "key": "ssn",
+      "label": "Social Security Number",
+      "helpText": "Required for NPDB and death master file verification.",
+      "responseType": "text",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "length",
+          "params": {
+            "exact": 9
+          }
+        },
+        {
+          "rule": "numeric"
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "ssn"
+      },
+      "aliases": [
+        "SSN",
+        "Social Security"
+      ],
+      "tags": [
+        "identity",
+        "sensitive"
+      ]
+    },
+    {
+      "id": "q_cred_email",
+      "key": "credentialingEmail",
+      "label": "Credentialing email address",
+      "helpText": "Used for credentialing correspondence and future recredentialing notices.",
+      "responseType": "text",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "required"
+        },
+        {
+          "rule": "email"
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "emails[].address"
+      },
+      "aliases": [
+        "Credentialing Contact Email",
+        "Email Address"
+      ],
+      "tags": [
+        "contact"
+      ]
+    },
+    {
+      "id": "q_caqh_id",
+      "key": "caqhId",
+      "label": "CAQH ID",
+      "helpText": "Council for Affordable Quality Healthcare provider ID.",
+      "responseType": "text",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "numeric"
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "caqhId"
+      },
+      "aliases": [
+        "CAQH Provider ID",
+        "CAQH Number"
+      ],
+      "tags": [
+        "credentialing"
+      ]
+    },
+    {
+      "id": "q_provider_type",
+      "key": "providerType",
+      "label": "Provider type",
+      "responseType": "singleSelect",
+      "optionSetKey": "providerTypes",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "required"
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "providerType"
+      },
+      "aliases": [
+        "Degree",
+        "Credential Type"
+      ],
+      "tags": [
+        "credentialing",
+        "driver"
+      ]
+    },
+    {
+      "id": "q_specialty",
+      "key": "specialty",
+      "label": "Primary specialty",
+      "responseType": "singleSelect",
+      "optionSetKey": "specialties",
+      "filteredBy": "providerType",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "required"
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "specialties[].name"
+      },
+      "aliases": [
+        "Specialty",
+        "Primary Practice Specialty"
+      ],
+      "tags": [
+        "credentialing",
+        "driver"
+      ]
+    },
+    {
+      "id": "q_addr_line1",
+      "key": "line1",
+      "label": "Address line 1",
+      "responseType": "text",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "required"
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "practiceLocations[].line1"
+      },
+      "aliases": [
+        "Street Address",
+        "Address"
+      ],
+      "tags": [
+        "address"
+      ]
+    },
+    {
+      "id": "q_addr_line2",
+      "key": "line2",
+      "label": "Address line 2",
+      "responseType": "text",
+      "status": "active",
+      "platformMapping": {
+        "practitioner": "practiceLocations[].line2"
+      },
+      "tags": [
+        "address"
+      ]
+    },
+    {
+      "id": "q_addr_city",
+      "key": "city",
+      "label": "City",
+      "responseType": "text",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "required"
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "practiceLocations[].city"
+      },
+      "tags": [
+        "address"
+      ]
+    },
+    {
+      "id": "q_addr_state",
+      "key": "state",
+      "label": "State",
+      "responseType": "singleSelect",
+      "optionSetKey": "usStates",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "required"
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "practiceLocations[].state"
+      },
+      "tags": [
+        "address"
+      ]
+    },
+    {
+      "id": "q_addr_zip",
+      "key": "zip",
+      "label": "ZIP code",
+      "responseType": "text",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "required"
+        },
+        {
+          "rule": "regex",
+          "params": {
+            "pattern": "^\\d{5}(-\\d{4})?$"
+          }
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "practiceLocations[].zip"
+      },
+      "tags": [
+        "address"
+      ]
+    },
+    {
+      "id": "q_practice_phone",
+      "key": "phone",
+      "label": "Practice phone number",
+      "responseType": "text",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "required"
+        },
+        {
+          "rule": "phone"
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "phoneNumbers[].number"
+      },
+      "tags": [
+        "contact"
+      ]
+    },
+    {
+      "id": "q_practice_fax",
+      "key": "fax",
+      "label": "Practice fax number",
+      "responseType": "text",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "fax"
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "faxNumbers[].number"
+      },
+      "tags": [
+        "contact"
+      ]
+    },
+    {
+      "id": "q_tin",
+      "key": "tin",
+      "label": "Federal Tax ID (TIN)",
+      "responseType": "text",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "length",
+          "params": {
+            "exact": 9
+          }
+        },
+        {
+          "rule": "numeric"
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "tin",
+        "facility": "tin"
+      },
+      "aliases": [
+        "TIN",
+        "Tax ID",
+        "EIN"
+      ],
+      "tags": [
+        "billing"
+      ]
+    },
+    {
+      "id": "q_lic_type",
+      "key": "licenseType",
+      "label": "License type",
+      "helpText": "e.g. RN, APRN, MD",
+      "responseType": "text",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "required"
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "licenses[].type"
+      },
+      "tags": [
+        "licensure"
+      ]
+    },
+    {
+      "id": "q_lic_state",
+      "key": "licenseState",
+      "label": "State",
+      "responseType": "singleSelect",
+      "optionSetKey": "usStates",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "required"
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "licenses[].state"
+      },
+      "tags": [
+        "licensure"
+      ]
+    },
+    {
+      "id": "q_lic_number",
+      "key": "licenseNumber",
+      "label": "License number",
+      "responseType": "text",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "required"
+        },
+        {
+          "rule": "maxLength",
+          "params": {
+            "value": 20
+          }
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "licenses[].licenseNumber"
+      },
+      "tags": [
+        "licensure"
+      ]
+    },
+    {
+      "id": "q_lic_expiration",
+      "key": "licenseExpiration",
+      "label": "Expiration date",
+      "responseType": "date",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "required"
+        },
+        {
+          "rule": "dateRange",
+          "params": {
+            "min": "today"
+          }
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "licenses[].expiration"
+      },
+      "tags": [
+        "licensure"
+      ]
+    },
+    {
+      "id": "q_lic_issue_date",
+      "key": "licenseIssueDate",
+      "label": "Issue date",
+      "helpText": "When the licence was first granted.",
+      "responseType": "date",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "dateRange",
+          "params": {
+            "max": "today"
+          }
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "licenses[].issuedOn"
+      },
+      "aliases": [
+        "Original issue date",
+        "Date licensed"
+      ],
+      "tags": [
+        "licensure"
+      ]
+    },
+    {
+      "id": "q_dea_number",
+      "key": "deaNumber",
+      "label": "DEA registration number",
+      "responseType": "text",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "required"
+        },
+        {
+          "rule": "regex",
+          "params": {
+            "pattern": "^[A-Z]{2}\\d{7}$"
+          }
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "dea[].number"
+      },
+      "aliases": [
+        "DEA",
+        "DEA Number"
+      ],
+      "tags": [
+        "credentialing"
+      ]
+    },
+    {
+      "id": "q_dea_expiration",
+      "key": "deaExpiration",
+      "label": "DEA expiration date",
+      "responseType": "date",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "required"
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "dea[].expiration"
+      },
+      "tags": [
+        "credentialing"
+      ]
+    },
+    {
+      "id": "q_board_certified",
+      "key": "boardCertified",
+      "label": "Are you board certified?",
+      "responseType": "buttonSelect",
+      "optionSetKey": "yesNo",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "required"
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "boardCertified"
+      },
+      "tags": [
+        "credentialing",
+        "driver"
+      ]
+    },
+    {
+      "id": "q_board_cert_number",
+      "key": "boardCertNumber",
+      "label": "Board certification number",
+      "helpText": "As printed on your certificate.",
+      "responseType": "text",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "required"
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "boardCertifications[].number"
+      },
+      "tags": [
+        "credentialing"
+      ]
+    },
+    {
+      "id": "q_mal_carrier",
+      "key": "malpracticeCarrier",
+      "label": "Malpractice carrier",
+      "responseType": "text",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "required"
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "malpractice.carrier"
+      },
+      "aliases": [
+        "PLI Carrier",
+        "Professional Liability Carrier"
+      ],
+      "tags": [
+        "insurance"
+      ]
+    },
+    {
+      "id": "q_mal_policy",
+      "key": "policyNumber",
+      "label": "Policy number",
+      "responseType": "text",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "required"
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "malpractice.policyNumber"
+      },
+      "tags": [
+        "insurance"
+      ]
+    },
+    {
+      "id": "q_mal_expiration",
+      "key": "policyExpiration",
+      "label": "Policy expiration date",
+      "responseType": "date",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "required"
+        }
+      ],
+      "platformMapping": {
+        "practitioner": "malpractice.expiration"
+      },
+      "tags": [
+        "insurance"
+      ]
+    },
+    {
+      "id": "q_has_caqh",
+      "key": "hasCaqhId",
+      "label": "Do you have a CAQH ID?",
+      "responseType": "buttonSelect",
+      "optionSetKey": "yesNo",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "required"
+        }
+      ],
+      "platformMapping": {},
+      "tags": [
+        "billing",
+        "driver"
+      ]
+    },
+    {
+      "id": "q_billing_same",
+      "key": "billingSameAsPrimary",
+      "label": "Is the billing address the same as your primary practice address?",
+      "responseType": "buttonSelect",
+      "optionSetKey": "yesNo",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "required"
+        }
+      ],
+      "platformMapping": {},
+      "tags": [
+        "billing",
+        "driver"
+      ]
+    },
+    {
+      "id": "q_billing_fax",
+      "key": "billingFax",
+      "label": "Billing fax number",
+      "responseType": "text",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "fax"
+        }
+      ],
+      "platformMapping": {},
+      "tags": [
+        "billing"
+      ]
+    },
+    {
+      "id": "q_attestation",
+      "key": "attestation",
+      "label": "I attest that the information provided above is accurate and complete",
+      "responseType": "buttonSelect",
+      "optionSetKey": "yesNo",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "required"
+        }
+      ],
+      "platformMapping": {},
+      "tags": [
+        "attestation"
+      ]
+    },
+    {
+      "id": "q_cv_upload",
+      "key": "curriculumVitae",
+      "label": "Curriculum vitae",
+      "helpText": "PDF, max 10MB. Must cover at least the last five years of employment.",
+      "responseType": "file",
+      "status": "active",
+      "validations": [
+        {
+          "rule": "required"
+        },
+        {
+          "rule": "fileType",
+          "params": {
+            "accept": "application/pdf"
+          }
+        },
+        {
+          "rule": "fileSize",
+          "params": {
+            "maxBytes": 10485760
+          }
+        }
+      ],
+      "platformMapping": {},
+      "tags": [
+        "documents"
+      ]
+    },
+    {
+      "id": "q_hospital_affiliation",
+      "key": "hospitalAffiliation",
+      "label": "Primary hospital affiliation",
+      "responseType": "text",
+      "status": "proposed",
+      "validations": [],
+      "platformMapping": {},
+      "tags": [
+        "credentialing"
+      ],
+      "proposedNote": "Extracted from the Florida Blue Recred form, p.7. Left proposed on purpose: promotion runs a duplicate check first, and that gate is the only thing standing between this catalog and four different entries all meaning 'NPI'."
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "_note": [
+    "Reusable form shapes. fb_practitioner_recred v2 is the blueprint fd_fl_blue_recred records.",
+    "",
+    "Eight placements, while the seeded form has nine steps: Attestation is tenant-specific and was",
+    "authored after instantiation, which is why sd_attestation has no sourceTemplateId. That gap is",
+    "the point — a blueprint is a starting shape, not a ceiling.",
+    "",
+    "st_address is placed twice with different repetition, which is why repetition lives on the",
+    "placement here rather than only on the template."
+  ],
+  "formBlueprints": [
+    {
+      "_id": "fb_practitioner_recred",
+      "tenantId": null,
+      "key": "practitioner_recred",
+      "name": "Practitioner Recredentialing Application",
+      "version": 2,
+      "entityType": "practitioner",
+      "status": "active",
+      "recognitionHints": {
+        "requiredSectionTemplates": ["st_licensure", "st_dea", "st_malpractice"],
+        "keywords": ["recredentialing", "reattestation", "reappointment"]
+      },
+      "placements": [
+        { "stepKey": "applicantDetails", "sectionTemplateId": "st_applicant", "order": 10, "group": "Applicant Information" },
+        { "stepKey": "practiceLocation", "sectionTemplateId": "st_address", "order": 20, "group": "Applicant Information", "repeating": { "min": 1, "max": 10, "itemLabel": "Location" } },
+        { "stepKey": "licensure", "sectionTemplateId": "st_licensure", "order": 30, "group": "Credentials" },
+        { "stepKey": "deaRegistration", "sectionTemplateId": "st_dea", "order": 40, "group": "Credentials" },
+        { "stepKey": "malpractice", "sectionTemplateId": "st_malpractice", "order": 50, "group": "Credentials" },
+        { "stepKey": "billingSetup", "sectionTemplateId": "st_billing_setup", "order": 60, "group": "Billing" },
+        { "stepKey": "billingAddress", "sectionTemplateId": "st_address", "order": 70, "group": "Billing" },
+        { "stepKey": "documents", "sectionTemplateId": "st_documents", "order": 80, "group": "Supporting Documents" }
+      ]
+    }
+  ]
+}

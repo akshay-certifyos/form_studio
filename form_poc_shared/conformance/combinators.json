@@ -1,0 +1,243 @@
+{
+  "suite": "combinators",
+  "description": "all / any / not over expressions. These combine EXPRESSIONS — quantification over repeat items is some/every, in quantifiers.json. The empty-collection cases matter: they are where naive implementations diverge.",
+  "cases": [
+    {
+      "id": "all-both-true",
+      "note": "The NSCP Billing Address rule. CP-38192 R1–R4.",
+      "expr": {
+        "all": [
+          { "field": "billingSetup.hasCaqhId", "op": "eq", "value": "Yes" },
+          { "field": "billingSetup.billingSameAsPrimary", "op": "eq", "value": "No" }
+        ]
+      },
+      "context": {
+        "answers": {
+          "billingSetup.hasCaqhId": "Yes",
+          "billingSetup.billingSameAsPrimary": "No"
+        }
+      },
+      "expected": true
+    },
+    {
+      "id": "all-first-false",
+      "expr": {
+        "all": [
+          { "field": "billingSetup.hasCaqhId", "op": "eq", "value": "Yes" },
+          { "field": "billingSetup.billingSameAsPrimary", "op": "eq", "value": "No" }
+        ]
+      },
+      "context": {
+        "answers": {
+          "billingSetup.hasCaqhId": "No",
+          "billingSetup.billingSameAsPrimary": "No"
+        }
+      },
+      "expected": false
+    },
+    {
+      "id": "all-second-false",
+      "expr": {
+        "all": [
+          { "field": "billingSetup.hasCaqhId", "op": "eq", "value": "Yes" },
+          { "field": "billingSetup.billingSameAsPrimary", "op": "eq", "value": "No" }
+        ]
+      },
+      "context": {
+        "answers": {
+          "billingSetup.hasCaqhId": "Yes",
+          "billingSetup.billingSameAsPrimary": "Yes"
+        }
+      },
+      "expected": false
+    },
+    {
+      "id": "all-empty-is-vacuously-true",
+      "note": "A step with an empty ALL group is always visible. Matches mathematical convention and means 'no conditions' and 'an empty condition group' behave identically.",
+      "expr": { "all": [] },
+      "context": { "answers": {} },
+      "expected": true
+    },
+    {
+      "id": "all-single-member",
+      "expr": { "all": [{ "field": "applicantDetails.providerType", "op": "eq", "value": "MD" }] },
+      "context": { "answers": { "applicantDetails.providerType": "MD" } },
+      "expected": true
+    },
+    {
+      "id": "all-three-members-one-false",
+      "expr": {
+        "all": [
+          { "field": "applicantDetails.providerType", "op": "eq", "value": "MD" },
+          { "field": "applicantDetails.boardCertified", "op": "eq", "value": "Yes" },
+          { "field": "applicantDetails.npi", "op": "exists" }
+        ]
+      },
+      "context": {
+        "answers": {
+          "applicantDetails.providerType": "MD",
+          "applicantDetails.boardCertified": "No",
+          "applicantDetails.npi": "1234567893"
+        }
+      },
+      "expected": false
+    },
+
+    {
+      "id": "any-first-true",
+      "expr": {
+        "any": [
+          { "field": "applicantDetails.providerType", "op": "eq", "value": "MD" },
+          { "field": "applicantDetails.providerType", "op": "eq", "value": "DO" }
+        ]
+      },
+      "context": { "answers": { "applicantDetails.providerType": "MD" } },
+      "expected": true
+    },
+    {
+      "id": "any-second-true",
+      "expr": {
+        "any": [
+          { "field": "applicantDetails.providerType", "op": "eq", "value": "MD" },
+          { "field": "applicantDetails.providerType", "op": "eq", "value": "DO" }
+        ]
+      },
+      "context": { "answers": { "applicantDetails.providerType": "DO" } },
+      "expected": true
+    },
+    {
+      "id": "any-none-true",
+      "expr": {
+        "any": [
+          { "field": "applicantDetails.providerType", "op": "eq", "value": "MD" },
+          { "field": "applicantDetails.providerType", "op": "eq", "value": "DO" }
+        ]
+      },
+      "context": { "answers": { "applicantDetails.providerType": "DC" } },
+      "expected": false
+    },
+    {
+      "id": "any-empty-is-false",
+      "note": "Dual of all-empty. An empty ANY group can never be satisfied.",
+      "expr": { "any": [] },
+      "context": { "answers": {} },
+      "expected": false
+    },
+
+    {
+      "id": "not-inverts-true",
+      "expr": { "not": { "field": "applicantDetails.providerType", "op": "eq", "value": "MD" } },
+      "context": { "answers": { "applicantDetails.providerType": "MD" } },
+      "expected": false
+    },
+    {
+      "id": "not-inverts-false",
+      "expr": { "not": { "field": "applicantDetails.providerType", "op": "eq", "value": "MD" } },
+      "context": { "answers": { "applicantDetails.providerType": "DC" } },
+      "expected": true
+    },
+    {
+      "id": "double-negation",
+      "expr": { "not": { "not": { "field": "applicantDetails.providerType", "op": "eq", "value": "MD" } } },
+      "context": { "answers": { "applicantDetails.providerType": "MD" } },
+      "expected": true
+    },
+
+    {
+      "id": "hide-when-all-is-nand",
+      "note": "The Hide verb over an ALL group. De Morgan: hidden only when BOTH hold, so it is visible when either fails.",
+      "expr": {
+        "not": {
+          "all": [
+            { "field": "billingSetup.hasCaqhId", "op": "eq", "value": "Yes" },
+            { "field": "billingSetup.billingSameAsPrimary", "op": "eq", "value": "No" }
+          ]
+        }
+      },
+      "context": {
+        "answers": {
+          "billingSetup.hasCaqhId": "Yes",
+          "billingSetup.billingSameAsPrimary": "Yes"
+        }
+      },
+      "expected": true
+    },
+    {
+      "id": "hide-when-any-is-nor",
+      "note": "The Hide verb over an ANY group. Hidden when either holds.",
+      "expr": {
+        "not": {
+          "any": [
+            { "field": "applicantDetails.providerType", "op": "eq", "value": "DC" },
+            { "field": "applicantDetails.providerType", "op": "eq", "value": "OD" }
+          ]
+        }
+      },
+      "context": { "answers": { "applicantDetails.providerType": "DC" } },
+      "expected": false
+    },
+
+    {
+      "id": "nested-three-deep",
+      "note": "The grammar supports arbitrary nesting even though the v0 builder UI only authors flat groups. CP-38192 Q4 leaves nesting unconfirmed on the frontend; the backend has it for free.",
+      "expr": {
+        "all": [
+          { "field": "applicantDetails.npi", "op": "exists" },
+          {
+            "any": [
+              { "field": "applicantDetails.providerType", "op": "eq", "value": "MD" },
+              {
+                "all": [
+                  { "field": "applicantDetails.providerType", "op": "eq", "value": "DO" },
+                  { "field": "applicantDetails.boardCertified", "op": "eq", "value": "Yes" }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "context": {
+        "answers": {
+          "applicantDetails.npi": "1234567893",
+          "applicantDetails.providerType": "DO",
+          "applicantDetails.boardCertified": "Yes"
+        }
+      },
+      "expected": true
+    },
+    {
+      "id": "nested-three-deep-inner-fails",
+      "expr": {
+        "all": [
+          { "field": "applicantDetails.npi", "op": "exists" },
+          {
+            "any": [
+              { "field": "applicantDetails.providerType", "op": "eq", "value": "MD" },
+              {
+                "all": [
+                  { "field": "applicantDetails.providerType", "op": "eq", "value": "DO" },
+                  { "field": "applicantDetails.boardCertified", "op": "eq", "value": "Yes" }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "context": {
+        "answers": {
+          "applicantDetails.npi": "1234567893",
+          "applicantDetails.providerType": "DO",
+          "applicantDetails.boardCertified": "No"
+        }
+      },
+      "expected": false
+    },
+    {
+      "id": "null-expression-is-always-visible",
+      "note": "A step with no condition at all. Both evaluators must treat a missing expression as true rather than erroring.",
+      "expr": null,
+      "context": { "answers": {} },
+      "expected": true
+    }
+  ]
+}

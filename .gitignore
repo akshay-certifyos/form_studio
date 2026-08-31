@@ -1,0 +1,40 @@
+# ---------------------------------------------------------------------------
+# Build output
+# ---------------------------------------------------------------------------
+build/
+.gradle/
+bin/
+out/
+*.class
+*.jar
+# The wrapper jar must be committed or `./gradlew` cannot bootstrap on a fresh
+# clone. Needs the leading `**/` — the path is nested under form_poc_backend/,
+# and a bare `gradle/wrapper/...` negation does not match it.
+!**/gradle/wrapper/gradle-wrapper.jar
+
+# ---------------------------------------------------------------------------
+# Real payer configurations — deliberately not committed
+# ---------------------------------------------------------------------------
+# form_poc_shared/real-forms/ holds production form schemas pulled from a live
+# environment (Premera, Highmark). They are real client configurations, and this
+# is a POC repository, so they stay on the machine that needs them.
+#
+# Nothing in the build reads them: the expressiveness audit
+# (provider-portal-api/docs/form-config-poc-expressiveness-audit.md) was done by
+# inspection, and its findings are recorded there in full. Drop the files back
+# into the path below if you want to re-derive them.
+form_poc_shared/real-forms/
+
+# ---------------------------------------------------------------------------
+# Editors and OS
+# ---------------------------------------------------------------------------
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# ---------------------------------------------------------------------------
+# Local overrides
+# ---------------------------------------------------------------------------
+.env
+.env.local

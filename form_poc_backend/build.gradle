@@ -1,0 +1,73 @@
+plugins {
+    id 'java'
+    id 'io.quarkus'
+    id 'com.diffplug.spotless' version("${spotlessVersion}")
+}
+
+group = 'com.certifyos.forms'
+version = '0.1.0-POC'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+}
+
+dependencies {
+    implementation enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}")
+
+    implementation 'io.quarkus:quarkus-arc'
+    implementation 'io.quarkus:quarkus-rest'
+    implementation 'io.quarkus:quarkus-rest-jackson'
+    implementation 'io.quarkus:quarkus-hibernate-validator'
+
+    // Dev Services starts a Mongo container automatically when no connection
+    // string is configured, so the POC needs no docker-compose.
+    implementation 'io.quarkus:quarkus-mongodb-panache'
+
+    // Swagger UI is how the API gets exercised by hand before the frontend lands.
+    implementation 'io.quarkus:quarkus-smallrye-openapi'
+
+    testImplementation 'io.quarkus:quarkus-junit5'
+    // Exercises the HTTP layer — routing, serialisation, status codes, exception mappers — none of
+    // which a unit test can see.
+    testImplementation 'io.rest-assured:rest-assured'
+    testImplementation "org.mockito:mockito-core:${mockitoVersion}"
+
+    // The POC's second thesis is that DDD layering is workable here.
+    // ArchUnit proves that claim rather than asserting it.
+    testImplementation "com.tngtech.archunit:archunit-junit5:${archunitVersion}"
+}
+
+spotless {
+    java {
+        palantirJavaFormat()
+        importOrder()
+        removeUnusedImports()
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << '-parameters'
+}
+
+test {
+    useJUnitPlatform()
+    systemProperty 'java.util.logging.manager', 'org.jboss.logmanager.LogManager'
+
+    // The conformance fixtures are the contract between this evaluator and the
+    // TypeScript one. They live outside the module so neither side owns them.
+    systemProperty 'form-poc.shared-dir', "${projectDir}/../form_poc_shared"
+
+    testLogging {
+        events 'passed', 'skipped', 'failed'
+        exceptionFormat 'full'
+    }
+}

@@ -1,0 +1,136 @@
+{
+  "suite": "refs",
+  "description": "Named conditions. One rule defined once and referenced from several steps, instead of copies that drift. Named conditions are supplied on context.namedConditions here; at runtime they live on the form definition and are inlined by the compiler (design principle P3), so a published version never changes when a named condition is edited.",
+  "cases": [
+    {
+      "id": "ref-resolves-true",
+      "note": "The Florida Blue specialty exemption, defined once and gating DEA registration.",
+      "expr": { "ref": "specialtyExempt" },
+      "context": {
+        "answers": { "applicantDetails.specialty": "DC" },
+        "namedConditions": {
+          "specialtyExempt": {
+            "field": "applicantDetails.specialty",
+            "op": "in",
+            "value": ["DC", "OD", "PhD", "Pathologist", "Radiologist"]
+          }
+        }
+      },
+      "expected": true
+    },
+    {
+      "id": "ref-resolves-false",
+      "expr": { "ref": "specialtyExempt" },
+      "context": {
+        "answers": { "applicantDetails.specialty": "Cardiology" },
+        "namedConditions": {
+          "specialtyExempt": {
+            "field": "applicantDetails.specialty",
+            "op": "in",
+            "value": ["DC", "OD", "PhD", "Pathologist", "Radiologist"]
+          }
+        }
+      },
+      "expected": false
+    },
+    {
+      "id": "ref-inside-not",
+      "note": "How the DEA step is actually authored: Hide when the exemption applies.",
+      "expr": { "not": { "ref": "specialtyExempt" } },
+      "context": {
+        "answers": { "applicantDetails.specialty": "DC" },
+        "namedConditions": {
+          "specialtyExempt": {
+            "field": "applicantDetails.specialty",
+            "op": "in",
+            "value": ["DC", "OD", "PhD", "Pathologist", "Radiologist"]
+          }
+        }
+      },
+      "expected": false
+    },
+    {
+      "id": "ref-inside-all",
+      "note": "A ref is a row in a group like any other leaf.",
+      "expr": {
+        "all": [
+          { "ref": "specialtyExempt" },
+          { "field": "applicantDetails.boardCertified", "op": "eq", "value": "Yes" }
+        ]
+      },
+      "context": {
+        "answers": {
+          "applicantDetails.specialty": "DC",
+          "applicantDetails.boardCertified": "Yes"
+        },
+        "namedConditions": {
+          "specialtyExempt": {
+            "field": "applicantDetails.specialty",
+            "op": "in",
+            "value": ["DC", "OD", "PhD"]
+          }
+        }
+      },
+      "expected": true
+    },
+    {
+      "id": "ref-to-a-compound-condition",
+      "note": "A named condition may itself be a group, which is what makes this composition without nesting.",
+      "expr": { "ref": "needsBillingAddress" },
+      "context": {
+        "answers": {
+          "billingSetup.hasCaqhId": "Yes",
+          "billingSetup.billingSameAsPrimary": "No"
+        },
+        "namedConditions": {
+          "needsBillingAddress": {
+            "all": [
+              { "field": "billingSetup.hasCaqhId", "op": "eq", "value": "Yes" },
+              { "field": "billingSetup.billingSameAsPrimary", "op": "eq", "value": "No" }
+            ]
+          }
+        }
+      },
+      "expected": true
+    },
+    {
+      "id": "ref-to-a-quantifier",
+      "expr": { "ref": "licenseExpiringSoon" },
+      "context": {
+        "answers": {},
+        "repeats": { "licensure": [{ "licenseExpiration": "2026-10-01" }] },
+        "namedConditions": {
+          "licenseExpiringSoon": {
+            "some": "licensure",
+            "where": { "field": "@item.licenseExpiration", "op": "lt", "value": "2027-01-01" }
+          }
+        }
+      },
+      "expected": true
+    },
+    {
+      "id": "ref-nested-one-level",
+      "note": "A named condition may reference another. The analyzer bounds this — see the cycle case in the analyzer suite.",
+      "expr": { "ref": "outer" },
+      "context": {
+        "answers": { "applicantDetails.specialty": "DC" },
+        "namedConditions": {
+          "outer": { "not": { "ref": "specialtyExempt" } },
+          "specialtyExempt": {
+            "field": "applicantDetails.specialty",
+            "op": "in",
+            "value": ["DC", "OD", "PhD"]
+          }
+        }
+      },
+      "expected": false
+    },
+    {
+      "id": "unresolved-ref-is-an-error-not-a-default",
+      "note": "Silently defaulting an unresolved ref to true would make a step permanently visible with no diagnostic. The evaluator must raise; the analyzer catches it at compile time so this never reaches runtime.",
+      "expr": { "ref": "doesNotExist" },
+      "context": { "answers": {}, "namedConditions": {} },
+      "expectedError": "UNRESOLVED_REF"
+    }
+  ]
+}

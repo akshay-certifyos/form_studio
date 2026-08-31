@@ -1,0 +1,62 @@
+{
+  "description": "Value lists, catalogued separately from the widget that renders them. Conditional filtering is driven by tags on the values (PRD §4.3) rather than hard-coded parent/child rules, so a new filtering rule is a new tag and never a code change.",
+  "optionSets": [
+    {
+      "id": "os_provider_types",
+      "tenantId": null,
+      "key": "providerTypes",
+      "name": "Provider types",
+      "active": true,
+      "options": [
+        { "value": "MD",  "label": "MD — Physician" },
+        { "value": "DO",  "label": "DO — Osteopathic Physician" },
+        { "value": "DPM", "label": "DPM — Podiatrist" },
+        { "value": "DC",  "label": "DC — Chiropractor" },
+        { "value": "OD",  "label": "OD — Optometrist" },
+        { "value": "PhD", "label": "PhD — Psychologist" }
+      ]
+    },
+    {
+      "id": "os_specialties",
+      "tenantId": null,
+      "key": "specialties",
+      "name": "Specialties",
+      "active": true,
+      "options": [
+        { "value": "Cardiology",   "label": "Cardiology",   "tags": { "providerType": ["MD", "DO"] } },
+        { "value": "FamilyMed",    "label": "Family Medicine", "tags": { "providerType": ["MD", "DO"] } },
+        { "value": "Radiologist",  "label": "Radiology",    "tags": { "providerType": ["MD", "DO"] } },
+        { "value": "Pathologist",  "label": "Pathology",    "tags": { "providerType": ["MD", "DO"] } },
+        { "value": "Podiatry",     "label": "Podiatry",     "tags": { "providerType": ["DPM"] } },
+        { "value": "DC",           "label": "Chiropractic", "tags": { "providerType": ["DC"] } },
+        { "value": "OD",           "label": "Optometry",    "tags": { "providerType": ["OD"] } },
+        { "value": "PhD",          "label": "Psychology",   "tags": { "providerType": ["PhD"] } }
+      ]
+    },
+    {
+      "id": "os_yes_no",
+      "tenantId": null,
+      "key": "yesNo",
+      "name": "Yes / No",
+      "active": true,
+      "options": [
+        { "value": "Yes", "label": "Yes" },
+        { "value": "No",  "label": "No" }
+      ]
+    },
+    {
+      "id": "os_us_states",
+      "tenantId": null,
+      "key": "usStates",
+      "name": "US states",
+      "active": true,
+      "options": [
+        { "value": "FL", "label": "Florida" },
+        { "value": "GA", "label": "Georgia" },
+        { "value": "AL", "label": "Alabama" },
+        { "value": "SC", "label": "South Carolina" },
+        { "value": "NC", "label": "North Carolina" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "suite": "context",
+  "description": "Expressions evaluate against a context, not answers alone. Production already gates steps by viewer role via FormConfig.audience, which is not an answer — so the variable space has to include viewer, entity and tenant from day one. Retrofitting this later would mean rewriting every stored expression.",
+  "cases": [
+    {
+      "id": "viewer-role-admin",
+      "note": "Replaces production's audience:\"admin\" with the same grammar as everything else, rather than a third parallel mechanism.",
+      "expr": { "field": "viewer.role", "op": "eq", "value": "admin" },
+      "context": { "answers": {}, "viewer": { "role": "admin" } },
+      "expected": true
+    },
+    {
+      "id": "viewer-role-practitioner",
+      "note": "The attestation step: visible only to the practitioner signing it.",
+      "expr": { "field": "viewer.role", "op": "eq", "value": "practitioner" },
+      "context": { "answers": {}, "viewer": { "role": "admin" } },
+      "expected": false
+    },
+    {
+      "id": "viewer-role-in-list",
+      "expr": { "field": "viewer.role", "op": "in", "value": ["admin", "practitioner"] },
+      "context": { "answers": {}, "viewer": { "role": "practitioner" } },
+      "expected": true
+    },
+    {
+      "id": "viewer-missing-is-not-an-error",
+      "note": "A preview with no viewer established must degrade, not throw.",
+      "expr": { "field": "viewer.role", "op": "eq", "value": "admin" },
+      "context": { "answers": {} },
+      "expected": false
+    },
+
+    {
+      "id": "entity-profile-field",
+      "note": "Pre-fill and gating from the practitioner's stored profile rather than a form answer.",
+      "expr": { "field": "entity.npi", "op": "exists" },
+      "context": { "answers": {}, "entity": { "npi": "1234567893" } },
+      "expected": true
+    },
+    {
+      "id": "entity-type-gates-a-step",
+      "expr": { "field": "entity.type", "op": "eq", "value": "practitioner" },
+      "context": { "answers": {}, "entity": { "type": "facility" } },
+      "expected": false
+    },
+    {
+      "id": "entity-nested-path",
+      "expr": { "field": "entity.address.state", "op": "eq", "value": "FL" },
+      "context": { "answers": {}, "entity": { "address": { "state": "FL" } } },
+      "expected": true
+    },
+
+    {
+      "id": "tenant-config-flag",
+      "note": "A step present for one payer and absent for another, without forking the form definition.",
+      "expr": { "field": "tenant.requiresDeaAttestation", "op": "eq", "value": true },
+      "context": { "answers": {}, "tenant": { "requiresDeaAttestation": true } },
+      "expected": true
+    },
+
+    {
+      "id": "answers-and-context-combine",
+      "note": "The realistic shape: an answer-driven rule narrowed by who is looking.",
+      "expr": {
+        "all": [
+          { "field": "applicantDetails.providerType", "op": "in", "value": ["MD", "DO"] },
+          { "field": "viewer.role", "op": "eq", "value": "practitioner" }
+        ]
+      },
+      "context": {
+        "answers": { "applicantDetails.providerType": "MD" },
+        "viewer": { "role": "practitioner" }
+      },
+      "expected": true
+    },
+    {
+      "id": "bare-path-never-resolves-against-context-namespaces",
+      "note": "A two-segment path is always an answer. 'viewer' as a stepKey must not collide with the viewer namespace — guarded because a payer could plausibly name a step that.",
+      "expr": { "field": "viewer.role", "op": "eq", "value": "admin" },
+      "context": {
+        "answers": { "viewer.role": "practitioner" },
+        "viewer": { "role": "admin" }
+      },
+      "expected": true
+    }
+  ]
+}

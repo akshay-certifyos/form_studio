@@ -1,0 +1,184 @@
+{
+  "suite": "quantifiers",
+  "description": "some / every range over the items of a repeating step. They are NOT the same operation as any / all, which combine expressions — the design review flagged that conflating the two names would be a permanent source of confusion. Repeat items live under context.repeats.<stepKey>, and @item.<questionKey> addresses the current repetition.",
+  "cases": [
+    {
+      "id": "some-one-item-matches",
+      "note": "The rule that motivated quantifiers: 'any license expires within 90 days'. Unrepresentable before this.",
+      "expr": {
+        "some": "licensure",
+        "where": { "field": "@item.licenseExpiration", "op": "lt", "value": "2027-01-01" }
+      },
+      "context": {
+        "answers": {},
+        "repeats": {
+          "licensure": [
+            { "licenseState": "FL", "licenseExpiration": "2029-06-30" },
+            { "licenseState": "GA", "licenseExpiration": "2026-10-01" }
+          ]
+        }
+      },
+      "expected": true
+    },
+    {
+      "id": "some-no-item-matches",
+      "expr": {
+        "some": "licensure",
+        "where": { "field": "@item.licenseExpiration", "op": "lt", "value": "2027-01-01" }
+      },
+      "context": {
+        "answers": {},
+        "repeats": {
+          "licensure": [
+            { "licenseState": "FL", "licenseExpiration": "2029-06-30" },
+            { "licenseState": "GA", "licenseExpiration": "2028-03-15" }
+          ]
+        }
+      },
+      "expected": false
+    },
+    {
+      "id": "some-empty-collection-is-false",
+      "note": "No licenses on file means no license is expiring. Dual of every-empty below.",
+      "expr": {
+        "some": "licensure",
+        "where": { "field": "@item.licenseExpiration", "op": "lt", "value": "2027-01-01" }
+      },
+      "context": { "answers": {}, "repeats": { "licensure": [] } },
+      "expected": false
+    },
+    {
+      "id": "some-missing-scope-is-false",
+      "note": "The step exists in the definition but the provider has not reached it. Must not throw.",
+      "expr": {
+        "some": "licensure",
+        "where": { "field": "@item.licenseExpiration", "op": "lt", "value": "2027-01-01" }
+      },
+      "context": { "answers": {}, "repeats": {} },
+      "expected": false
+    },
+
+    {
+      "id": "every-all-items-match",
+      "expr": {
+        "every": "licensure",
+        "where": { "field": "@item.licenseState", "op": "eq", "value": "FL" }
+      },
+      "context": {
+        "answers": {},
+        "repeats": {
+          "licensure": [{ "licenseState": "FL" }, { "licenseState": "FL" }]
+        }
+      },
+      "expected": true
+    },
+    {
+      "id": "every-one-item-fails",
+      "expr": {
+        "every": "licensure",
+        "where": { "field": "@item.licenseState", "op": "eq", "value": "FL" }
+      },
+      "context": {
+        "answers": {},
+        "repeats": {
+          "licensure": [{ "licenseState": "FL" }, { "licenseState": "GA" }]
+        }
+      },
+      "expected": false
+    },
+    {
+      "id": "every-empty-collection-is-vacuously-true",
+      "note": "Mathematical convention, and the exact dual of some-empty. Implementations that return false here are the classic bug.",
+      "expr": {
+        "every": "licensure",
+        "where": { "field": "@item.licenseState", "op": "eq", "value": "FL" }
+      },
+      "context": { "answers": {}, "repeats": { "licensure": [] } },
+      "expected": true
+    },
+    {
+      "id": "every-missing-scope-is-vacuously-true",
+      "expr": {
+        "every": "licensure",
+        "where": { "field": "@item.licenseState", "op": "eq", "value": "FL" }
+      },
+      "context": { "answers": {}, "repeats": {} },
+      "expected": true
+    },
+
+    {
+      "id": "item-field-missing-on-one-item",
+      "note": "A partially filled repetition must not throw — the leaf simply evaluates against nothing.",
+      "expr": {
+        "some": "licensure",
+        "where": { "field": "@item.licenseNumber", "op": "exists" }
+      },
+      "context": {
+        "answers": {},
+        "repeats": {
+          "licensure": [{ "licenseState": "FL" }, { "licenseState": "GA", "licenseNumber": "ME12345" }]
+        }
+      },
+      "expected": true
+    },
+    {
+      "id": "quantifier-body-may-combine-item-fields",
+      "note": "The where-clause is a full expression, so all/any compose inside a quantifier.",
+      "expr": {
+        "some": "licensure",
+        "where": {
+          "all": [
+            { "field": "@item.licenseState", "op": "eq", "value": "FL" },
+            { "field": "@item.licenseExpiration", "op": "lt", "value": "2027-01-01" }
+          ]
+        }
+      },
+      "context": {
+        "answers": {},
+        "repeats": {
+          "licensure": [
+            { "licenseState": "FL", "licenseExpiration": "2029-06-30" },
+            { "licenseState": "GA", "licenseExpiration": "2026-10-01" },
+            { "licenseState": "FL", "licenseExpiration": "2026-05-01" }
+          ]
+        }
+      },
+      "expected": true
+    },
+    {
+      "id": "quantifier-body-may-reference-form-level-answers",
+      "note": "Inside a quantifier, an unprefixed path still resolves against form-level answers — only @item. is scoped to the repetition.",
+      "expr": {
+        "some": "licensure",
+        "where": {
+          "all": [
+            { "field": "@item.licenseState", "op": "eq", "value": "FL" },
+            { "field": "applicantDetails.providerType", "op": "eq", "value": "MD" }
+          ]
+        }
+      },
+      "context": {
+        "answers": { "applicantDetails.providerType": "MD" },
+        "repeats": { "licensure": [{ "licenseState": "FL" }] }
+      },
+      "expected": true
+    },
+    {
+      "id": "quantifier-negation",
+      "note": "'No license is expired' — not(some) rather than every(not), which are equivalent but read differently to an author.",
+      "expr": {
+        "not": {
+          "some": "licensure",
+          "where": { "field": "@item.licenseExpiration", "op": "lt", "value": "2026-01-01" }
+        }
+      },
+      "context": {
+        "answers": {},
+        "repeats": {
+          "licensure": [{ "licenseExpiration": "2029-06-30" }, { "licenseExpiration": "2028-03-15" }]
+        }
+      },
+      "expected": true
+    }
+  ]
+}

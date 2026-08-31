@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://certifyos.com/form-poc/expression.schema.json",
+  "title": "Form Condition Expression",
+  "description": "One recursive grammar with many attachment points. See docs/form-config-poc.md §6. all/any combine EXPRESSIONS; some/every quantify over REPEAT ITEMS — deliberately named differently because they are different operations.",
+
+  "$ref": "#/$defs/expression",
+
+  "$defs": {
+    "expression": {
+      "oneOf": [
+        { "$ref": "#/$defs/all" },
+        { "$ref": "#/$defs/any" },
+        { "$ref": "#/$defs/not" },
+        { "$ref": "#/$defs/ref" },
+        { "$ref": "#/$defs/some" },
+        { "$ref": "#/$defs/every" },
+        { "$ref": "#/$defs/leaf" }
+      ]
+    },
+
+    "all": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["all"],
+      "properties": {
+        "all": { "type": "array", "items": { "$ref": "#/$defs/expression" } }
+      },
+      "description": "Boolean AND over expressions. Empty array evaluates true (vacuous truth)."
+    },
+
+    "any": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["any"],
+      "properties": {
+        "any": { "type": "array", "items": { "$ref": "#/$defs/expression" } }
+      },
+      "description": "Boolean OR over expressions. Empty array evaluates false."
+    },
+
+    "not": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["not"],
+      "properties": { "not": { "$ref": "#/$defs/expression" } },
+      "description": "Negation. Authors never write this directly — the Hide verb compiles to it."
+    },
+
+    "ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref"],
+      "properties": {
+        "ref": { "type": "string", "minLength": 1 }
+      },
+      "description": "Reference to a named condition on the form definition. Inlined at compile time, per design principle P3."
+    },
+
+    "some": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["some", "where"],
+      "properties": {
+        "some": { "$ref": "#/$defs/repeatScope" },
+        "where": { "$ref": "#/$defs/expression" }
+      },
+      "description": "Existential quantifier over the items of a repeating step. Empty collection evaluates false."
+    },
+
+    "every": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["every", "where"],
+      "properties": {
+        "every": { "$ref": "#/$defs/repeatScope" },
+        "where": { "$ref": "#/$defs/expression" }
+      },
+      "description": "Universal quantifier over the items of a repeating step. Empty collection evaluates true."
+    },
+
+    "leaf": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "op"],
+      "properties": {
+        "field": { "$ref": "#/$defs/path" },
+        "op": { "$ref": "#/$defs/operator" },
+        "value": {
+          "description": "Omitted for operators of arity none; a scalar for arity single; an array for arity list."
+        }
+      }
+    },
+
+    "repeatScope": {
+      "type": "string",
+      "pattern": "^[a-zA-Z][a-zA-Z0-9]*$",
+      "description": "The stepKey of a repeating step, e.g. \"licensure\"."
+    },
+
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "oneOf": [
+        {
+          "pattern": "^[a-zA-Z][a-zA-Z0-9]*\\.[a-zA-Z][a-zA-Z0-9]*$",
+          "description": "An answer, addressed as <stepKey>.<questionKey>. Two steps composing the same section definition therefore hold independent answers."
+        },
+        {
+          "pattern": "^@item\\.[a-zA-Z][a-zA-Z0-9]*$",
+          "description": "Within some/every, the current repetition's field."
+        },
+        {
+          "pattern": "^(viewer|entity|tenant)\\.[a-zA-Z][a-zA-Z0-9.]*$",
+          "description": "Non-answer context. Production already gates steps by viewer role, so answers alone are not a sufficient variable space."
+        }
+      ]
+    },
+
+    "operator": {
+      "description": "`in` asks whether the answer is one of a list. `contains` asks whether an array/string answer includes a value. Kept distinct so neither operator's meaning depends on the answer's shape. `contains` also exists in production's StepCondition, so it is required for round-tripping.",
+      "enum": [
+        "eq", "neq",
+        "in", "nin",
+        "contains",
+        "gt", "gte", "lt", "lte",
+        "exists", "empty",
+        "matches"
+      ]
+    }
+  }
+}
