@@ -13,6 +13,7 @@ import com.certifyos.forms.form_authoring.domain.reuse.SectionDrift;
 import com.certifyos.forms.form_authoring.domain.reuse.SectionTemplate;
 import com.certifyos.forms.question_catalog.domain.Question;
 import com.certifyos.forms.question_catalog.domain.QuestionId;
+import com.certifyos.forms.shared_kernel.expression.Expression;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -237,6 +238,112 @@ class ReuseFixtureTest {
                     .filter(p -> p.stepKey().equals(stepKey))
                     .findFirst()
                     .orElseThrow();
+        }
+    }
+
+    /**
+     * A blueprint has to carry its logic, and the fixture has to prove it.
+     *
+     * <p>Same failure shape as the defect at the top of this file, one level along. The blueprint
+     * fixture originally held placements and nothing else, so instantiating it produced a form with
+     * every step unconditional — and that reads as a success, because the form renders perfectly. It
+     * is also the precise defect three Florida Blue sections ship with in production today, which
+     * would have made it very easy to mistake for correct behaviour.
+     */
+    @Nested
+    @DisplayName("the blueprint carries logic, not only shape")
+    class BlueprintLogic {
+
+        private FormBlueprint blueprint() {
+            return fixtures.formBlueprints().stream()
+                    .filter(b -> b.id().equals("fb_practitioner_recred"))
+                    .findFirst()
+                    .orElseThrow();
+        }
+
+        @Test
+        @DisplayName("every ref in a placement resolves against the blueprint's own conditions")
+        void refsResolve() {
+            FormBlueprint blueprint = blueprint();
+            Set<String> defined = blueprint.namedConditions().keySet();
+
+            assertFalse(defined.isEmpty(), "a blueprint with no named conditions cannot carry a ref at all");
+
+            for (FormBlueprint.BlueprintPlacement placement : blueprint.placements()) {
+                for (String key : refsIn(placement.visibleWhen())) {
+                    assertTrue(
+                            defined.contains(key),
+                            "placement '" + placement.stepKey() + "' references condition '" + key
+                                    + "', which the blueprint does not define — instantiating it would produce a "
+                                    + "form that cannot compile, and the author would meet the failure one step "
+                                    + "removed from the cause");
+                }
+            }
+        }
+
+        @Test
+        @DisplayName("the placements' rules match the seeded form they describe")
+        void staysInLockstepWithTheForm() {
+            FormBlueprint blueprint = blueprint();
+
+            var form = fixtures.forms().stream()
+                    .filter(f -> f.id().equals("fd_fl_blue_recred"))
+                    .findFirst()
+                    .orElseThrow();
+
+            // Deliberately in lockstep, unlike the templates and sections, which are kept apart on
+            // purpose so drift is demonstrable. There is no drift concept between a blueprint and a
+            // form, so a mismatch here is not a scenario — it is just the fixture lying about what
+            // instantiating this shape would give you.
+            for (var step : form.steps()) {
+                FormBlueprint.BlueprintPlacement placement = blueprint.placements().stream()
+                        .filter(p -> p.stepKey().equals(step.key().value()))
+                        .findFirst()
+                        .orElse(null);
+                if (placement == null) {
+                    continue;
+                }
+                assertEquals(
+                        step.visibleWhen(),
+                        placement.visibleWhen(),
+                        "step '" + step.key() + "' and the blueprint placement of the same name disagree");
+            }
+
+            assertEquals(
+                    form.namedConditions().keySet(),
+                    blueprint.namedConditions().keySet(),
+                    "the blueprint must define the same rules the form does, or a ref would dangle");
+        }
+
+        @Test
+        @DisplayName("at least one placement is actually conditioned, so the assertion above can fail")
+        void someRuleIsCarried() {
+            long conditioned = blueprint().placements().stream()
+                    .filter(p -> p.visibleWhen() != null)
+                    .count();
+
+            // Without this, a blueprint that lost every rule would satisfy the lockstep test only if
+            // the form lost them too — and a suite that passes on two empty sets is not a check.
+            assertTrue(conditioned >= 4, "expected the recred blueprint to carry its four rules, found " + conditioned);
+        }
+
+        private static Set<String> refsIn(Expression expression) {
+            if (expression == null) {
+                return Set.of();
+            }
+            return switch (expression) {
+                case Expression.Ref ref -> Set.of(ref.key());
+                case Expression.Not not -> refsIn(not.operand());
+                case Expression.All all -> all.operands().stream()
+                        .flatMap(e -> refsIn(e).stream())
+                        .collect(Collectors.toSet());
+                case Expression.Any any -> any.operands().stream()
+                        .flatMap(e -> refsIn(e).stream())
+                        .collect(Collectors.toSet());
+                case Expression.Some some -> refsIn(some.where());
+                case Expression.Every every -> refsIn(every.where());
+                case Expression.Leaf ignored -> Set.of();
+            };
         }
     }
 }

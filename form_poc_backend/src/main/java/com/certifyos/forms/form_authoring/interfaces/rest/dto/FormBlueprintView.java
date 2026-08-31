@@ -14,9 +14,23 @@ public record FormBlueprintView(
         String entityType,
         boolean global,
         List<String> keywords,
+        List<NamedConditionView> namedConditions,
         List<PlacementView> placements) {
 
-    public record PlacementView(String stepKey, String sectionTemplateId, int order, String group, boolean repeating) {}
+    /**
+     * {@code conditioned} rather than the expression itself: the blueprint list is a picker, and what
+     * an author needs there is whether the shape brings logic with it, not what the logic says. The
+     * rules become inspectable the moment the blueprint is instantiated, on the form that results.
+     */
+    public record PlacementView(
+            String stepKey,
+            String sectionTemplateId,
+            int order,
+            String group,
+            boolean repeating,
+            boolean conditioned) {}
+
+    public record NamedConditionView(String key, String label) {}
 
     public static FormBlueprintView of(FormBlueprint blueprint) {
         return new FormBlueprintView(
@@ -27,9 +41,17 @@ public record FormBlueprintView(
                 blueprint.entityType(),
                 blueprint.tenantId() == null,
                 blueprint.recognitionHints().keywords(),
+                blueprint.namedConditions().values().stream()
+                        .map(c -> new NamedConditionView(c.key(), c.label()))
+                        .toList(),
                 blueprint.orderedPlacements().stream()
                         .map(p -> new PlacementView(
-                                p.stepKey(), p.sectionTemplateId(), p.order(), p.group(), p.repeating() != null))
+                                p.stepKey(),
+                                p.sectionTemplateId(),
+                                p.order(),
+                                p.group(),
+                                p.repeating() != null,
+                                p.visibleWhen() != null))
                         .toList());
     }
 }

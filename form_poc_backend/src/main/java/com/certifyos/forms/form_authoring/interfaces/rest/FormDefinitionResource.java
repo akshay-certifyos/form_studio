@@ -2,14 +2,23 @@ package com.certifyos.forms.form_authoring.interfaces.rest;
 
 import com.certifyos.forms.form_authoring.application.FormAuthoringService;
 import com.certifyos.forms.form_authoring.application.FormPublishingService;
+import com.certifyos.forms.form_authoring.application.command.CreateBlankForm;
+import com.certifyos.forms.form_authoring.application.command.CreateBlueprintFromForm;
 import com.certifyos.forms.form_authoring.application.command.CreateFormFromBlueprint;
+import com.certifyos.forms.form_authoring.application.command.PlaceSection;
 import com.certifyos.forms.form_authoring.application.command.PreviewChangeSet;
 import com.certifyos.forms.form_authoring.application.command.PublishFormVersion;
+import com.certifyos.forms.form_authoring.application.command.RemoveNamedCondition;
+import com.certifyos.forms.form_authoring.application.command.RemoveStep;
+import com.certifyos.forms.form_authoring.application.command.ReorderSteps;
 import com.certifyos.forms.form_authoring.application.command.UpdateStepCondition;
+import com.certifyos.forms.form_authoring.application.command.UpsertNamedCondition;
+import com.certifyos.forms.form_authoring.domain.definition.Step;
 import com.certifyos.forms.form_authoring.domain.port.FormDefinitionRepository;
 import com.certifyos.forms.form_authoring.domain.port.FormVersionRepository;
 import com.certifyos.forms.form_authoring.domain.publishing.CompiledForm;
 import com.certifyos.forms.form_authoring.interfaces.rest.dto.ChangePreviewView;
+import com.certifyos.forms.form_authoring.interfaces.rest.dto.FormBlueprintView;
 import com.certifyos.forms.form_authoring.interfaces.rest.dto.FormDetailView;
 import com.certifyos.forms.form_authoring.interfaces.rest.dto.FormSummaryView;
 import com.certifyos.forms.form_authoring.interfaces.rest.dto.PublishedVersionView;
@@ -22,10 +31,13 @@ import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.PATCH;
 import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
@@ -75,28 +87,192 @@ public class FormDefinitionResource {
     }
 
     /**
-     * Creates a form from a blueprint.
+     * Creates a form, either from a blueprint or empty.
      *
-     * <p>The blueprint names section <em>templates</em>, so this instantiates one section per
-     * placement and places them as steps. One section per placement, not per template: a blueprint
-     * that places the same template twice — Practice Location and Billing Address — must yield two
-     * independent sections, or customising one would change the other.
+     * <p>One endpoint for both, because "create a form" is one intention and the presence of a
+     * {@code blueprintId} already says which kind. Two endpoints would make the client decide which
+     * to call before it knows whether the author picked a starting shape.
      *
-     * <p>Either every section is created or none is. A blueprint half-applied because a template had
-     * been deprecated would leave a tenant with a form that looks complete and is not.
+     * <p><b>From a blueprint:</b> the blueprint names section <em>templates</em>, so this
+     * instantiates one section per placement and places them as steps — one section per placement,
+     * not per template, or a blueprint placing the same template twice (Practice Location and Billing
+     * Address) would yield two steps sharing content. Each placement's condition and the blueprint's
+     * named conditions come across with it. Either every section is created or none is: a blueprint
+     * half-applied because a template had been deprecated leaves a tenant with a form that looks
+     * complete and is not.
+     *
+     * <p><b>Empty:</b> no steps, and {@code entityType} is then required, since there is no blueprint
+     * to inherit it from. This is the path for a payer nobody has onboarded before.
      */
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
-    @Operation(operationId = "createFormFromBlueprint", summary = "Create a form from a blueprint")
+    @Operation(operationId = "createForm", summary = "Create a form from a blueprint, or empty")
     @APIResponse(responseCode = "200", description = "The created draft form")
     @APIResponse(
             responseCode = "422",
-            description = "The blueprint references section templates that are not available",
+            description = "The blueprint references unavailable templates, or an empty form named no entity type",
             content = @Content(schema = @Schema(implementation = ApiError.class)))
-    public FormDetailView createFromBlueprint(
-            @PathParam("tenantId") String tenantId, @Valid CreateFromBlueprintRequest request) {
+    public FormDetailView create(@PathParam("tenantId") String tenantId, @Valid CreateFormRequest request) {
+        // Dispatch, not a business rule: which command this is depends only on what the caller sent.
         return FormDetailView.of(
-                authoring.handle(new CreateFormFromBlueprint(tenantId, request.blueprintId(), request.name())));
+                request.blueprintId() == null || request.blueprintId().isBlank()
+                        ? authoring.handle(new CreateBlankForm(tenantId, request.name(), request.entityType()))
+                        : authoring.handle(
+                                new CreateFormFromBlueprint(tenantId, request.blueprintId(), request.name())));
+    }
+
+    /**
+     * Places a section into the form as a new step.
+     *
+     * <p>The verb that makes a form assemblable rather than only instantiable. {@code stepKey} is the
+     * caller's to choose because it is the answer namespace: placing one address section twice has to
+     * produce {@code practiceLocation.*} and {@code billingAddress.*}, and only the author knows
+     * which placement is which.
+     *
+     * <p>Returns the whole form. Adding a step changes what every other step's condition may
+     * legally reference — a rule can only read from a step ahead of it — so the studio re-derives
+     * that from the form rather than tracking it.
+     */
+    @POST
+    @Path("/{formId}/steps")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "placeSection", summary = "Place a section into a form as a new step")
+    @APIResponse(responseCode = "200", description = "The updated form")
+    @APIResponse(
+            responseCode = "422",
+            description = "The step key is already used, is not a legal namespace, or the section is another tenant's",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    public FormDetailView placeSection(
+            @PathParam("tenantId") String tenantId,
+            @PathParam("formId") String formId,
+            @Valid PlaceSectionRequest request) {
+
+        Step.Repeating repeating = request.repeating() == null
+                ? null
+                : new Step.Repeating(
+                        request.repeating().min(),
+                        request.repeating().max(),
+                        request.repeating().itemLabel());
+
+        return FormDetailView.of(authoring.handle(new PlaceSection(
+                formId,
+                request.sectionDefinitionId(),
+                request.stepKey(),
+                request.order(),
+                request.group(),
+                request.titleOverride(),
+                repeating)));
+    }
+
+    /**
+     * Takes a step out of the form.
+     *
+     * <p>A real DELETE, unlike a section's questions, which are only ever disabled. The asymmetry is
+     * the point: a question's origin is provenance a template upgrade reconciles against, while a
+     * step placed a section that still exists and can be placed again — there is nothing to preserve.
+     *
+     * <p>Does not check whether other steps read from this one. That is reported at {@code /validate}
+     * along with everything else, rather than blocking an edit mid-way through a restructure.
+     */
+    @DELETE
+    @Path("/{formId}/steps/{stepKey}")
+    @Operation(operationId = "removeStep", summary = "Remove a step from a form")
+    public FormDetailView removeStep(
+            @PathParam("tenantId") String tenantId,
+            @PathParam("formId") String formId,
+            @PathParam("stepKey") String stepKey) {
+        return FormDetailView.of(authoring.handle(new RemoveStep(formId, stepKey)));
+    }
+
+    /**
+     * Sets the step order for the form.
+     *
+     * <p>{@code PUT} with the complete key list, for the same reason the section question reorder is:
+     * whole-list is idempotent and atomic, while patching one step's order is two writes for a swap
+     * and a half-applied swap leaves two steps sharing a number — after which the sort decides what
+     * the provider sees.
+     */
+    @PUT
+    @Path("/{formId}/steps/order")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "reorderSteps", summary = "Set the step order for a form")
+    @APIResponse(
+            responseCode = "422",
+            description = "The key list is not exactly this form's steps",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    public FormDetailView reorderSteps(
+            @PathParam("tenantId") String tenantId,
+            @PathParam("formId") String formId,
+            @Valid ReorderStepsRequest request) {
+        return FormDetailView.of(authoring.handle(new ReorderSteps(formId, request.keys())));
+    }
+
+    /**
+     * Defines or replaces a named condition.
+     *
+     * <p>{@code PUT} because it is an upsert keyed by the path — the author is saying what a name
+     * means, not creating a thing that might already exist.
+     *
+     * <p>Safe against published versions by construction: named conditions are inlined at compile
+     * time, so every published version holds its own frozen copy and nothing here can reach one. That
+     * is the entire reason for the inlining rule.
+     */
+    @PUT
+    @Path("/{formId}/conditions/{key}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "upsertNamedCondition", summary = "Define or replace a named condition")
+    public FormDetailView upsertNamedCondition(
+            @PathParam("tenantId") String tenantId,
+            @PathParam("formId") String formId,
+            @PathParam("key") String key,
+            @Valid UpsertNamedConditionRequest request) {
+
+        return FormDetailView.of(authoring.handle(
+                new UpsertNamedCondition(formId, key, request.label(), ExpressionCodec.read(request.expression()))));
+    }
+
+    /**
+     * Deletes a named condition.
+     *
+     * <p>409 while any step still references it, naming those steps. The analyzer would catch the
+     * dangling reference at publish, but by then the author is a screen away from the cause.
+     */
+    @DELETE
+    @Path("/{formId}/conditions/{key}")
+    @Operation(operationId = "removeNamedCondition", summary = "Delete a named condition")
+    @APIResponse(
+            responseCode = "409",
+            description = "Steps still reference this condition",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    public FormDetailView removeNamedCondition(
+            @PathParam("tenantId") String tenantId, @PathParam("formId") String formId, @PathParam("key") String key) {
+        return FormDetailView.of(authoring.handle(new RemoveNamedCondition(formId, key)));
+    }
+
+    /**
+     * Promotes an assembled form into a reusable blueprint.
+     *
+     * <p>The form-level twin of {@code POST /sections/{id}/promote}, and what closes the reuse loop:
+     * the first payer form is assembled from the catalog, and the second starts from its shape.
+     *
+     * <p>422 if any placed section came from no template, naming the steps. A blueprint references
+     * templates, so promoting the sections first is the dependency rather than a rule invented here.
+     */
+    @POST
+    @Path("/{formId}/promote")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Operation(operationId = "promoteFormToBlueprint", summary = "Promote a form into a reusable blueprint")
+    @APIResponse(
+            responseCode = "422",
+            description = "A placed section came from no template, so there is nothing for the blueprint to point at",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    public FormBlueprintView promote(
+            @PathParam("tenantId") String tenantId,
+            @PathParam("formId") String formId,
+            @Valid PromoteFormRequest request) {
+
+        return FormBlueprintView.of(
+                authoring.handle(new CreateBlueprintFromForm(tenantId, formId, request.key(), request.name())));
     }
 
     /**
@@ -226,7 +402,42 @@ public class FormDefinitionResource {
     /** @param changelog what changed, in the author's words — shown in version history */
     public record PublishRequest(@NotBlank String changelog, String ticketId) {}
 
-    public record CreateFromBlueprintRequest(@NotBlank String blueprintId, String name) {}
+    /**
+     * Nothing here is {@code @NotBlank}, because what is required depends on the other fields: an
+     * empty form needs a name and an entity type, one from a blueprint inherits both. The commands
+     * enforce it and answer 422 — see the note on {@code CreateBlankForm}.
+     *
+     * @param blueprintId absent or blank creates an empty form; set instantiates that blueprint
+     * @param name null keeps the blueprint's own name; required for an empty form
+     * @param entityType required only for an empty form — a blueprint carries its own
+     */
+    public record CreateFormRequest(String blueprintId, String name, String entityType) {}
+
+    /**
+     * @param stepKey the answer namespace this placement owns
+     * @param order null appends after the last step
+     */
+    public record PlaceSectionRequest(
+            @NotBlank String sectionDefinitionId,
+            @NotBlank String stepKey,
+            Integer order,
+            String group,
+            String titleOverride,
+            RepeatingRequest repeating) {}
+
+    public record RepeatingRequest(int min, int max, @NotBlank String itemLabel) {}
+
+    /** @param keys every step key in the form, exactly once, in the order wanted */
+    public record ReorderStepsRequest(@NotEmpty List<String> keys) {}
+
+    /** @param label what the rule reads as in the builder; a referenced condition renders by it */
+    public record UpsertNamedConditionRequest(@NotBlank String label, JsonNode expression) {}
+
+    /**
+     * @param key identifies the new blueprint
+     * @param name null keeps the form's own name
+     */
+    public record PromoteFormRequest(@NotBlank String key, String name) {}
 
     /** Null {@code visibleWhen} clears the rule. Not the same as an empty {@code all}. */
     public record UpdateStepConditionRequest(JsonNode visibleWhen) {}

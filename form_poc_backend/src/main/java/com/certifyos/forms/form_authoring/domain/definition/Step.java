@@ -82,6 +82,11 @@ public record Step(
                 key, sectionDefinitionId, order, enabled, titleOverride, group, value, visibleWhen, audienceWhen);
     }
 
+    public Step withOrder(int value) {
+        return new Step(
+                key, sectionDefinitionId, value, enabled, titleOverride, group, repeating, visibleWhen, audienceWhen);
+    }
+
     public Step withGroup(String value) {
         return new Step(
                 key, sectionDefinitionId, order, enabled, titleOverride, value, repeating, visibleWhen, audienceWhen);

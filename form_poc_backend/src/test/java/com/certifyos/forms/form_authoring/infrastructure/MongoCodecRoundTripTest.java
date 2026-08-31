@@ -201,8 +201,20 @@ class MongoCodecRoundTripTest {
                 "practitioner",
                 new FormBlueprint.RecognitionHints(
                         List.of("st_licensure", "st_dea"), List.of("recredentialing", "reattestation")),
+                // A blueprint carries logic as well as shape, so the round trip has to prove both
+                // survive. It did not before: placements stored only structure, and a blueprint that
+                // lost its conditions would instantiate into a form with every step unconditional —
+                // the failure looks like a working form, which is why it needs a test rather than
+                // inspection.
+                Map.of(
+                        "specialtyExempt",
+                        new FormDefinition.NamedCondition(
+                                "specialtyExempt",
+                                "Specialty exempt from DEA requirements",
+                                new Expression.Leaf("applicantDetails.specialty", Operator.IN, List.of("DC", "OD")))),
                 List.of(
-                        new FormBlueprint.BlueprintPlacement("licensure", "st_licensure", 10, "Credentials", null),
+                        new FormBlueprint.BlueprintPlacement(
+                                "licensure", "st_licensure", 10, "Credentials", null, null),
                         // The same template placed twice, repeating in one placement and not the
                         // other — the case that forced both stepKey and repeating onto the placement,
                         // and the one a round trip must not collapse.
@@ -211,8 +223,17 @@ class MongoCodecRoundTripTest {
                                 "st_address",
                                 20,
                                 "Locations",
-                                new Step.Repeating(1, 10, "Location")),
-                        new FormBlueprint.BlueprintPlacement("billingAddress", "st_address", 30, "Locations", null)),
+                                new Step.Repeating(1, 10, "Location"),
+                                null),
+                        new FormBlueprint.BlueprintPlacement(
+                                "billingAddress",
+                                "st_address",
+                                30,
+                                "Locations",
+                                null,
+                                // A ref into the blueprint's own named conditions — the case that
+                                // breaks if either field is dropped, because each alone is useless.
+                                new Expression.Not(new Expression.Ref("specialtyExempt")))),
                 SectionTemplate.TemplateStatus.ACTIVE);
 
         FormBlueprintDocument decoded = throughBson(FormBlueprintDocument.from(blueprint), FormBlueprintDocument.class);
@@ -226,6 +247,24 @@ class MongoCodecRoundTripTest {
         assertNotNull(placements.get(1).repeating());
         assertEquals("Location", placements.get(1).repeating().itemLabel());
         assertNull(placements.get(2).repeating(), "billing address does not repeat");
+
+        // The rules, which are the half a structure-only round trip would silently drop.
+        assertNull(placements.get(0).visibleWhen(), "licensure is unconditional");
+        assertTrue(
+                placements.get(2).visibleWhen() instanceof Expression.Not, "billing address keeps its Hide-when rule");
+        assertEquals(
+                "specialtyExempt",
+                ((Expression.Ref) ((Expression.Not) placements.get(2).visibleWhen()).operand()).key(),
+                "and the rule still points at the named condition rather than an inlined copy");
+
+        FormDefinition.NamedCondition exempt =
+                decoded.toDomain().namedConditions().get("specialtyExempt");
+        assertNotNull(exempt, "a ref with no definition would instantiate into a form that cannot compile");
+        assertEquals("Specialty exempt from DEA requirements", exempt.label());
+        assertEquals(
+                List.of("DC", "OD"),
+                ((Expression.Leaf) exempt.expression()).value(),
+                "and the option values inside it survive as strings, not as extended JSON");
     }
 
     @Test

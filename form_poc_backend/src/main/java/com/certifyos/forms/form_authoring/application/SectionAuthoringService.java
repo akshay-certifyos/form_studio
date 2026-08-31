@@ -1,5 +1,6 @@
 package com.certifyos.forms.form_authoring.application;
 
+import com.certifyos.forms.form_authoring.application.command.CreateBlankSection;
 import com.certifyos.forms.form_authoring.application.command.CreateSectionFromTemplate;
 import com.certifyos.forms.form_authoring.domain.definition.Layout;
 import com.certifyos.forms.form_authoring.domain.definition.Origin;
@@ -38,6 +39,18 @@ public class SectionAuthoringService {
         this.sections = sections;
         this.templates = templates;
         this.questions = questions;
+    }
+
+    /**
+     * Starts an empty section the tenant owns outright.
+     *
+     * <p>No source template, and the null is load-bearing — see {@code SectionDefinition.blank}. This
+     * is the path for the part of a payer form that is genuinely specific to it, which every real
+     * form examined had some of.
+     */
+    public SectionDefinition handle(CreateBlankSection command) {
+        return sections.save(
+                SectionDefinition.blank("sd_" + UUID.randomUUID(), command.tenantId(), command.key(), command.name()));
     }
 
     public SectionDefinition handle(CreateSectionFromTemplate command) {
@@ -139,18 +152,31 @@ public class SectionAuthoringService {
     }
 
     /**
-     * Promotes a customised section into the next version of its template.
+     * Makes a section reusable.
      *
-     * <p>Only sections that came from a template can be promoted in v0. Promoting a from-scratch
-     * section would mean minting a brand-new template, which is a different operation with a
-     * different question to answer — what should it be called, and should it be global?
+     * <p>One verb, two paths, because from the author's side there is one intention — "other forms
+     * should be able to start from this". Which path applies is a fact about the section, not a
+     * decision to put to the author:
+     *
+     * <ul>
+     *   <li>Came from a template → mints version n+1 of that template.
+     *   <li>Authored from scratch → mints a brand-new template at version 1, and links the section to
+     *       it so drift becomes computable from here on.
+     * </ul>
+     *
+     * <p>The second path needs a {@code key}, since nothing exists to inherit one from. It was
+     * originally refused outright with a note that it "would mean minting a brand-new template,
+     * which is a different operation" — true, and it is the operation a from-scratch form needs
+     * before it can become a blueprint, so it is now built rather than deferred.
+     *
+     * @param key required only when the section came from no template; ignored otherwise
+     * @param name null keeps the section's own name
      */
-    public SectionTemplate promote(String sectionId) {
+    public SectionTemplate promote(String sectionId, String key, String name) {
         SectionDefinition section = require(sectionId);
 
         if (section.sourceTemplateId() == null) {
-            throw new InvariantViolated(
-                    "Section " + sectionId + " was authored from scratch, so there is no template to promote it into.");
+            return mintTemplate(section, key, name);
         }
 
         SectionTemplate template = templates
@@ -184,6 +210,51 @@ public class SectionAuthoringService {
                 section.active()));
 
         return promoted;
+    }
+
+    /** Convenience for the template-backed path, which needs neither key nor name. */
+    public SectionTemplate promote(String sectionId) {
+        return promote(sectionId, null, null);
+    }
+
+    /**
+     * Mints a first-version template from a section that came from none, and links the section to it.
+     *
+     * <p>The link is the point. Without it the section would report no drift forever — not because it
+     * is in sync, but because there is nothing recorded to compare against — and the author would
+     * have no way to tell "level with the template" from "never connected to one".
+     */
+    private SectionTemplate mintTemplate(SectionDefinition section, String key, String name) {
+        if (key == null || key.isBlank()) {
+            throw new InvariantViolated("Section " + section.id()
+                    + " came from no template, so promoting it creates one. That needs a key to identify the "
+                    + "new template by.");
+        }
+
+        SectionTemplate minted =
+                templates.save(SectionTemplate.fromSection("st_" + UUID.randomUUID(), key, name, section));
+
+        // Every enabled question is now the template's, so re-origin them for the same reason the
+        // upgrade path does: a question left marked ADDED reports as a local addition forever, and
+        // the drift indicator never clears no matter how many times the author promotes.
+        List<QuestionInstance> reconciled = section.questions().stream()
+                .map(instance -> minted.question(instance.key()).isPresent() && instance.origin() == Origin.ADDED
+                        ? reorigin(instance, Origin.TEMPLATE)
+                        : instance)
+                .toList();
+
+        sections.save(new SectionDefinition(
+                section.id(),
+                section.tenantId(),
+                section.key(),
+                section.name(),
+                section.intro(),
+                minted.id(),
+                minted.version(),
+                reconciled,
+                section.active()));
+
+        return minted;
     }
 
     private SectionDefinition require(String sectionId) {

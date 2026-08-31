@@ -52,6 +52,18 @@ public record SectionDefinition(
     }
 
     /**
+     * An empty section a tenant authored rather than instantiated.
+     *
+     * <p>{@link #sourceTemplateId} stays null, and that null is load-bearing: it is what tells drift
+     * there is nothing to reconcile against, and what makes promotion mint a new template rather than
+     * a new version of one. A from-scratch section that pretended to have a source would report
+     * permanent drift against a template it never came from.
+     */
+    public static SectionDefinition blank(String id, String tenantId, String key, String name) {
+        return new SectionDefinition(id, tenantId, key, name, null, null, null, List.of(), true);
+    }
+
+    /**
      * Reorders the questions to the given key sequence.
      *
      * <p>Takes the <b>whole list</b> rather than one question and a new position, because a partial

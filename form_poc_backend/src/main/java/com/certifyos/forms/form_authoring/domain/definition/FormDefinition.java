@@ -174,6 +174,55 @@ public record FormDefinition(
     }
 
     /**
+     * Reorders the steps to the given key sequence.
+     *
+     * <p>Whole-list for the same reason {@link SectionDefinition#reorderQuestions} is: a partial
+     * reorder leaves omitted steps on their old numbers, two steps can end up sharing one, and the
+     * sort then decides the form's sequence by iteration order rather than by anything authored.
+     *
+     * <p><b>Disabled steps participate.</b> They hold their slot so re-enabling one puts it back
+     * where it was.
+     *
+     * <p>Note what this does <em>not</em> check: whether the new order leaves a condition pointing
+     * forward at a step that now comes later. Authoring passes through exactly that state — you move
+     * a gating step down, and for one save the form is unpublishable. The analyzer reports it at
+     * {@code /validate}, which is the right time to hear about it.
+     *
+     * @param orderedKeys every step key in this form, exactly once
+     * @throws IllegalArgumentException if the keys are not exactly this form's step keys
+     */
+    public FormDefinition reorderSteps(List<String> orderedKeys) {
+        Set<String> submitted = new LinkedHashSet<>(orderedKeys);
+        if (submitted.size() != orderedKeys.size()) {
+            throw new IllegalArgumentException("Duplicate keys in the requested order: " + orderedKeys);
+        }
+
+        Set<String> own = steps.stream()
+                .map(s -> s.key().value())
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        if (!submitted.equals(own)) {
+            Set<String> missing = new LinkedHashSet<>(own);
+            missing.removeAll(submitted);
+            Set<String> unknown = new LinkedHashSet<>(submitted);
+            unknown.removeAll(own);
+            throw new IllegalArgumentException("A reorder must list every step in the form exactly once."
+                    + (missing.isEmpty() ? "" : " Missing: " + missing + ".")
+                    + (unknown.isEmpty() ? "" : " Not in this form: " + unknown + "."));
+        }
+
+        Map<String, Step> byKey = new LinkedHashMap<>();
+        steps.forEach(s -> byKey.put(s.key().value(), s));
+
+        List<Step> reordered = new ArrayList<>();
+        int order = 10;
+        for (String key : orderedKeys) {
+            reordered.add(byKey.get(key).withOrder(order));
+            order += 10;
+        }
+        return copyWithSteps(reordered);
+    }
+
+    /**
      * Adds a disqualifying rule.
      *
      * <p>Note that v0 of the compiler stores this and does not emit it — {@code FormCompiler} raises

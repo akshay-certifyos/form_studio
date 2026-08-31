@@ -1,6 +1,7 @@
 package com.certifyos.forms.form_authoring.interfaces.rest;
 
 import com.certifyos.forms.form_authoring.application.SectionAuthoringService;
+import com.certifyos.forms.form_authoring.application.command.CreateBlankSection;
 import com.certifyos.forms.form_authoring.application.command.CreateSectionFromTemplate;
 import com.certifyos.forms.form_authoring.domain.definition.SectionDefinition;
 import com.certifyos.forms.form_authoring.domain.port.SectionDefinitionRepository;
@@ -26,6 +27,7 @@ import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -65,20 +67,32 @@ public class SectionDefinitionResource {
     }
 
     /**
-     * Instantiates a section from a template — copy-on-use.
+     * Creates a section, either from a template or empty.
      *
-     * <p>The resulting section is the tenant's own. A later edit to the template does not reach it;
-     * what the tenant gets instead is a computed {@code drift} report and the choice of what to do
-     * about it.
+     * <p><b>From a template:</b> copy-on-use. The result is the tenant's own — a later edit to the
+     * template does not reach it. What the tenant gets instead is a computed {@code drift} report and
+     * the choice of what to do about it.
+     *
+     * <p><b>Empty:</b> no questions, no source template, and a {@code key} the caller supplies since
+     * there is nothing to inherit one from. This is the path for the part of a payer form that is
+     * genuinely specific to it — every real form examined had some — and the questions are then added
+     * from the catalog, so the section is bespoke while its content stays shared.
      */
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
-    @Operation(operationId = "createSectionFromTemplate", summary = "Create a section from a template")
-    public SectionDetailView createFromTemplate(
-            @PathParam("tenantId") String tenantId, @Valid CreateFromTemplateRequest request) {
+    @Operation(operationId = "createSection", summary = "Create a section from a template, or empty")
+    @APIResponse(
+            responseCode = "422",
+            description = "An empty section named no key",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    public SectionDetailView create(@PathParam("tenantId") String tenantId, @Valid CreateSectionRequest request) {
+        // Dispatch only — which command applies follows from what the caller sent.
+        SectionDefinition created = request.sectionTemplateId() == null
+                        || request.sectionTemplateId().isBlank()
+                ? authoring.handle(new CreateBlankSection(tenantId, request.key(), request.name()))
+                : authoring.handle(
+                        new CreateSectionFromTemplate(tenantId, request.sectionTemplateId(), request.name()));
 
-        SectionDefinition created =
-                authoring.handle(new CreateSectionFromTemplate(tenantId, request.sectionTemplateId(), request.name()));
         return SectionDetailView.of(created, resolveCatalog(created));
     }
 
@@ -165,16 +179,52 @@ public class SectionDefinitionResource {
         return SectionDriftView.of(authoring.drift(sectionId));
     }
 
-    /** Promotes this section into the next version of its template. */
+    /**
+     * Makes this section reusable.
+     *
+     * <p>One verb covering both cases, because the author's intention is the same either way and
+     * which applies is a fact about the section rather than a choice to put to them:
+     *
+     * <ul>
+     *   <li>The section came from a template → mints version n+1 of it. No body needed.
+     *   <li>The section was authored from scratch → mints a new template at version 1 and links the
+     *       section to it. Needs a {@code key}, since nothing exists to inherit one from.
+     * </ul>
+     *
+     * <p>{@code key} and {@code name} are query parameters rather than a body, because the body would
+     * have to be optional — a template-backed promote needs none — and an optional entity makes a
+     * bodyless POST a 415 in practice. Two optional scalars on an action endpoint are what query
+     * parameters are for.
+     *
+     * <p>The new template is <b>tenant-owned, not global</b>. Publishing one client's section shape
+     * to every tenant is a curation decision Certify makes deliberately, not a side effect of an
+     * author pressing promote.
+     */
     @POST
     @Path("/{sectionId}/promote")
-    @Operation(operationId = "promoteSection", summary = "Promote a section into a new template version")
+    @Operation(operationId = "promoteSection", summary = "Promote a section into a template version, or a new template")
+    @APIResponse(
+            responseCode = "422",
+            description = "The section came from no template and the request named no key for the new one",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
     public SectionTemplateView promote(
-            @PathParam("tenantId") String tenantId, @PathParam("sectionId") String sectionId) {
-        return SectionTemplateView.of(authoring.promote(sectionId));
+            @PathParam("tenantId") String tenantId,
+            @PathParam("sectionId") String sectionId,
+            @QueryParam("key") String key,
+            @QueryParam("name") String name) {
+
+        return SectionTemplateView.of(authoring.promote(sectionId, key, name));
     }
 
-    public record CreateFromTemplateRequest(@NotBlank String sectionTemplateId, String name) {}
+    /**
+     * Conditionally required rather than {@code @NotBlank}, as with {@code CreateFormRequest}: an
+     * empty section needs a key and a name, one from a template inherits both.
+     *
+     * @param sectionTemplateId absent or blank creates an empty section; set instantiates that template
+     * @param name null keeps the template's own name; required for an empty section
+     * @param key required only for an empty section — a template carries its own
+     */
+    public record CreateSectionRequest(String sectionTemplateId, String name, String key) {}
 
     /** @param keys every question key in the section, exactly once, in the order wanted */
     public record ReorderQuestionsRequest(@NotEmpty List<String> keys) {}

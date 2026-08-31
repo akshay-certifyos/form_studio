@@ -121,16 +121,20 @@ class ReuseResourceTest {
                 2,
                 "practitioner",
                 new FormBlueprint.RecognitionHints(List.of("st_dea"), List.of("recredentialing")),
+                Map.of(),
                 List.of(
-                        new FormBlueprint.BlueprintPlacement("deaRegistration", "st_dea", 10, "Credentials", null),
+                        new FormBlueprint.BlueprintPlacement(
+                                "deaRegistration", "st_dea", 10, "Credentials", null, null),
                         // Same template twice, repeating in one placement only.
                         new FormBlueprint.BlueprintPlacement(
                                 "practiceLocation",
                                 "st_address",
                                 20,
                                 "Locations",
-                                new Step.Repeating(1, 10, "Location")),
-                        new FormBlueprint.BlueprintPlacement("billingAddress", "st_address", 30, "Locations", null)),
+                                new Step.Repeating(1, 10, "Location"),
+                                null),
+                        new FormBlueprint.BlueprintPlacement(
+                                "billingAddress", "st_address", 30, "Locations", null, null)),
                 SectionTemplate.TemplateStatus.ACTIVE));
 
         // References a template nobody has, so instantiating it must fail before writing anything.
@@ -142,7 +146,8 @@ class ReuseResourceTest {
                 1,
                 "practitioner",
                 FormBlueprint.RecognitionHints.none(),
-                List.of(new FormBlueprint.BlueprintPlacement("ghost", "st_missing", 10, null, null)),
+                Map.of(),
+                List.of(new FormBlueprint.BlueprintPlacement("ghost", "st_missing", 10, null, null, null)),
                 SectionTemplate.TemplateStatus.ACTIVE));
     }
 

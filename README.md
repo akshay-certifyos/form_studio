@@ -15,8 +15,15 @@ It doubles as a proposal to rewrite the service under **Domain-Driven Design on 
 1. The model expresses real payer forms without per-form code.
 2. CP-38192's compound AND / OR / `in` rules are pure config.
 3. One expression grammar, two implementations, provably in agreement.
+4. A form for a payer nobody has onboarded before can be **assembled from nothing** — catalog to
+   published artifact, with no fixture in the path.
 
-All three are demonstrated. One caveat on #2 that the design doc states plainly and this README will not bury: the compiler emits the existing artifact *shape*, but the condition slot is **not** backward compatible — a recursive `all`/`any`/`not` cannot be expressed in production's flat `{field, operator, value}`, which is the very thing CP-38192 is about. See §3 P2 of the design doc.
+All four are demonstrated. #4 was added late: for most of the build the API had no way to place a
+section into a form, so every form had to be instantiated from a blueprint and every blueprint was a
+hand-written fixture. Nothing failed, because the seed data always had a form ready to edit — which
+is the general warning, and it is recorded in the note at the end of §9 of the design doc.
+
+One caveat on #2 that the design doc states plainly and this README will not bury: the compiler emits the existing artifact *shape*, but the condition slot is **not** backward compatible — a recursive `all`/`any`/`not` cannot be expressed in production's flat `{field, operator, value}`, which is the very thing CP-38192 is about. See §3 P2 of the design doc.
 
 ## Layout
 
@@ -38,6 +45,8 @@ form_poc/
 | `certifyos-frontend/packages/form-expression` | the TypeScript half of the grammar |
 | `certifyos-frontend/packages/form-studio-tests` | Playwright verification against a live stack |
 
+Test counts: **556** backend, **112** studio, **85** in the grammar package, **32** browser specs.
+
 ## Running it
 
 Needs a local MongoDB. **Quarkus Dev Services is deliberately off** — see the comment in
@@ -51,7 +60,7 @@ brew services start mongodb-community    # :27017
 
 cd form_poc_backend
 make dev        # :9100, seeds fixtures on startup
-make test       # 523 tests, no Mongo and no Docker needed
+make test       # 556 tests, no Mongo and no Docker needed
 make check      # format check + tests + ArchUnit
 ```
 
@@ -95,6 +104,11 @@ SpotBugs, Checkstyle, Jacoco, git hooks, health checks, Lombok, deploy tooling. 
 deleted — the quality bar is "does it prove the thesis", not "is it production-ready". ArchUnit is
 the one exception, because "DDD layering is workable here" is a claim the POC has to demonstrate
 rather than assert.
+
+Sections and forms accumulate in the dev database as you use the studio and the browser suite, and
+there is no delete endpoint for either — see `packages/form-studio-tests/README.md` for why the specs
+key everything to the run. To start clean:
+`mongosh --eval 'db.getSiblingDB("form_poc").dropDatabase()'` and restart the backend.
 
 Three features are stored by the model and **not** compiled: hard stops, grouped questions, and a
 step's audience rule. Each raises a compilation notice rather than vanishing, so an author is told

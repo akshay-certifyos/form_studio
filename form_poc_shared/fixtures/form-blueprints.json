@@ -4,7 +4,7 @@
     "",
     "Eight placements, while the seeded form has nine steps: Attestation is tenant-specific and was",
     "authored after instantiation, which is why sd_attestation has no sourceTemplateId. That gap is",
-    "the point — a blueprint is a starting shape, not a ceiling.",
+    "the point \u2014 a blueprint is a starting shape, not a ceiling.",
     "",
     "st_address is placed twice with different repetition, which is why repetition lives on the",
     "placement here rather than only on the template."
@@ -19,18 +19,130 @@
       "entityType": "practitioner",
       "status": "active",
       "recognitionHints": {
-        "requiredSectionTemplates": ["st_licensure", "st_dea", "st_malpractice"],
-        "keywords": ["recredentialing", "reattestation", "reappointment"]
+        "requiredSectionTemplates": [
+          "st_licensure",
+          "st_dea",
+          "st_malpractice"
+        ],
+        "keywords": [
+          "recredentialing",
+          "reattestation",
+          "reappointment"
+        ]
       },
+      "namedConditions": [
+        {
+          "key": "specialtyExempt",
+          "label": "Specialty exempt from DEA requirements",
+          "expression": {
+            "field": "applicantDetails.specialty",
+            "op": "in",
+            "value": [
+              "DC",
+              "OD",
+              "PhD",
+              "Pathologist",
+              "Radiologist"
+            ]
+          }
+        },
+        {
+          "key": "prescribingProviderType",
+          "label": "Provider type that can prescribe",
+          "expression": {
+            "field": "applicantDetails.providerType",
+            "op": "in",
+            "value": [
+              "MD",
+              "DO",
+              "DPM"
+            ]
+          }
+        }
+      ],
       "placements": [
-        { "stepKey": "applicantDetails", "sectionTemplateId": "st_applicant", "order": 10, "group": "Applicant Information" },
-        { "stepKey": "practiceLocation", "sectionTemplateId": "st_address", "order": 20, "group": "Applicant Information", "repeating": { "min": 1, "max": 10, "itemLabel": "Location" } },
-        { "stepKey": "licensure", "sectionTemplateId": "st_licensure", "order": 30, "group": "Credentials" },
-        { "stepKey": "deaRegistration", "sectionTemplateId": "st_dea", "order": 40, "group": "Credentials" },
-        { "stepKey": "malpractice", "sectionTemplateId": "st_malpractice", "order": 50, "group": "Credentials" },
-        { "stepKey": "billingSetup", "sectionTemplateId": "st_billing_setup", "order": 60, "group": "Billing" },
-        { "stepKey": "billingAddress", "sectionTemplateId": "st_address", "order": 70, "group": "Billing" },
-        { "stepKey": "documents", "sectionTemplateId": "st_documents", "order": 80, "group": "Supporting Documents" }
+        {
+          "stepKey": "applicantDetails",
+          "sectionTemplateId": "st_applicant",
+          "order": 10,
+          "group": "Applicant Information"
+        },
+        {
+          "stepKey": "practiceLocation",
+          "sectionTemplateId": "st_address",
+          "order": 20,
+          "group": "Applicant Information",
+          "repeating": {
+            "min": 1,
+            "max": 10,
+            "itemLabel": "Location"
+          }
+        },
+        {
+          "stepKey": "licensure",
+          "sectionTemplateId": "st_licensure",
+          "order": 30,
+          "group": "Credentials",
+          "visibleWhen": {
+            "field": "applicantDetails.providerType",
+            "op": "nin",
+            "value": [
+              "PhD"
+            ]
+          }
+        },
+        {
+          "stepKey": "deaRegistration",
+          "sectionTemplateId": "st_dea",
+          "order": 40,
+          "group": "Credentials",
+          "visibleWhen": {
+            "not": {
+              "ref": "specialtyExempt"
+            }
+          }
+        },
+        {
+          "stepKey": "malpractice",
+          "sectionTemplateId": "st_malpractice",
+          "order": 50,
+          "group": "Credentials",
+          "visibleWhen": {
+            "ref": "prescribingProviderType"
+          }
+        },
+        {
+          "stepKey": "billingSetup",
+          "sectionTemplateId": "st_billing_setup",
+          "order": 60,
+          "group": "Billing"
+        },
+        {
+          "stepKey": "billingAddress",
+          "sectionTemplateId": "st_address",
+          "order": 70,
+          "group": "Billing",
+          "visibleWhen": {
+            "all": [
+              {
+                "field": "billingSetup.hasCaqhId",
+                "op": "eq",
+                "value": "Yes"
+              },
+              {
+                "field": "billingSetup.billingSameAsPrimary",
+                "op": "eq",
+                "value": "No"
+              }
+            ]
+          }
+        },
+        {
+          "stepKey": "documents",
+          "sectionTemplateId": "st_documents",
+          "order": 80,
+          "group": "Supporting Documents"
+        }
       ]
     }
   ]

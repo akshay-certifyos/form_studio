@@ -164,6 +164,43 @@ public record SectionTemplate(
                 id, tenantId, key, name, version + 1, definition.intro(), repeating, promoted, status);
     }
 
+    /**
+     * Mints a brand-new template from a section authored from scratch.
+     *
+     * <p>Distinct from {@link #nextVersionFrom}, which advances a template a section already came
+     * from. This is the other half of the same loop: a tenant builds a section by hand, discovers it
+     * is general, and makes it reusable. Version 1, because nothing preceded it.
+     *
+     * <p><b>Tenant-owned, not global.</b> The tenant who authored it gets it; making it visible to
+     * every tenant is a curation decision Certify makes deliberately, not a side effect of one
+     * tenant pressing a button. {@code tenantId} null would publish one client's section shape to
+     * all of them.
+     *
+     * <p>Disabled questions are dropped, for the same reason {@link #nextVersionFrom} drops them —
+     * switching something off and then promoting says the template should not carry it either.
+     */
+    public static SectionTemplate fromSection(String id, String key, String name, SectionDefinition definition) {
+        List<TemplateQuestion> extracted = definition.enabledQuestions().stream()
+                .map(instance -> new TemplateQuestion(
+                        instance.key(),
+                        instance.catalogQuestionId(),
+                        instance.order(),
+                        instance.required(),
+                        instance.layout()))
+                .toList();
+
+        return new SectionTemplate(
+                id,
+                definition.tenantId(),
+                key,
+                name == null || name.isBlank() ? definition.name() : name,
+                1,
+                definition.intro(),
+                null,
+                extracted,
+                TemplateStatus.ACTIVE);
+    }
+
     public static SectionTemplate global(String id, String key, String name, TemplateQuestion... questions) {
         return new SectionTemplate(id, null, key, name, 1, null, null, List.of(questions), TemplateStatus.ACTIVE);
     }

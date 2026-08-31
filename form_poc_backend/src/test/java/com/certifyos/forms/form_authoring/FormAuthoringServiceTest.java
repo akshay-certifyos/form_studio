@@ -11,6 +11,7 @@ import com.certifyos.forms.form_authoring.application.command.UpdateStepConditio
 import com.certifyos.forms.form_authoring.domain.definition.FormDefinition;
 import com.certifyos.forms.form_authoring.domain.definition.Step;
 import com.certifyos.forms.shared_kernel.exception.ConflictingState;
+import com.certifyos.forms.shared_kernel.exception.InvariantViolated;
 import com.certifyos.forms.shared_kernel.exception.NotFound;
 import com.certifyos.forms.shared_kernel.expression.Expression;
 import com.certifyos.forms.shared_kernel.expression.Operator;
@@ -182,6 +183,10 @@ class FormAuthoringServiceTest {
     @Test
     @DisplayName("rejects a blank step key at the command boundary, before any load")
     void rejectsBlankStepKey() {
-        assertThrows(IllegalArgumentException.class, () -> new UpdateStepCondition("fd_1", "  ", IS_CHIRO));
+        // InvariantViolated, not IllegalArgumentException: a command is built from a request body, so
+        // its guards are validating caller input and must reach the client as a 422. Only
+        // InvariantViolated has a mapper — an IllegalArgumentException here would surface as a 500
+        // for a request the caller could have fixed.
+        assertThrows(InvariantViolated.class, () -> new UpdateStepCondition("fd_1", "  ", IS_CHIRO));
     }
 }

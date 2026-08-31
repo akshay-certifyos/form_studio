@@ -1,7 +1,14 @@
 package com.certifyos.forms.form_authoring.application;
 
+import com.certifyos.forms.form_authoring.application.command.CreateBlankForm;
+import com.certifyos.forms.form_authoring.application.command.CreateBlueprintFromForm;
 import com.certifyos.forms.form_authoring.application.command.CreateFormFromBlueprint;
+import com.certifyos.forms.form_authoring.application.command.PlaceSection;
+import com.certifyos.forms.form_authoring.application.command.RemoveNamedCondition;
+import com.certifyos.forms.form_authoring.application.command.RemoveStep;
+import com.certifyos.forms.form_authoring.application.command.ReorderSteps;
 import com.certifyos.forms.form_authoring.application.command.UpdateStepCondition;
+import com.certifyos.forms.form_authoring.application.command.UpsertNamedCondition;
 import com.certifyos.forms.form_authoring.domain.definition.FormDefinition;
 import com.certifyos.forms.form_authoring.domain.definition.SectionDefinition;
 import com.certifyos.forms.form_authoring.domain.definition.Step;
@@ -97,7 +104,11 @@ public class FormAuthoringService {
                     null,
                     placement.group(),
                     placement.repeating() != null ? placement.repeating() : template.repeating(),
-                    null,
+                    // The blueprint's rule, not null. Instantiating a shape and then discarding
+                    // every condition it carried would hand the author a form whose steps all show
+                    // unconditionally — the exact defect three Florida Blue sections ship with
+                    // today, reintroduced by the tool meant to fix it.
+                    placement.visibleWhen(),
                     null));
         }
 
@@ -109,26 +120,173 @@ public class FormAuthoringService {
                 blueprint.entityType(),
                 blueprint.id(),
                 blueprint.version(),
-                Map.of(),
+                blueprint.namedConditions(),
                 steps,
                 List.of(),
                 FormDefinition.DefinitionStatus.DRAFT));
     }
 
     public FormDefinition handle(UpdateStepCondition command) {
+        FormDefinition definition = requireDraft(command.formDefinitionId());
+        Step step = definition.step(command.stepKey()).orElseThrow(() -> new NotFound("Step", command.stepKey()));
+
+        return definitions.save(definition.replaceStep(step.withVisibleWhen(command.visibleWhen())));
+    }
+
+    // ------------------------------------------------------------------
+    // assembly
+    // ------------------------------------------------------------------
+
+    /**
+     * Starts an empty form.
+     *
+     * <p>Deliberately not "create a form and give it a first step". An empty form is a legitimate
+     * state — it is where every form built for a payer nobody has onboarded before begins — and it
+     * compiles to an artifact with no steps rather than to an error, so the studio can show it
+     * immediately instead of holding the author on a modal until they have decided the first section.
+     */
+    public FormDefinition handle(CreateBlankForm command) {
+        return definitions.save(FormDefinition.draft(
+                "fd_" + UUID.randomUUID(), command.tenantId(), command.name(), command.entityType()));
+    }
+
+    /**
+     * Places a section into a form as a new step.
+     *
+     * <p>Checks the section exists <em>and</em> belongs to this tenant. The second half matters more
+     * than it looks: a step holds only a section id, so a form pointing at another tenant's section
+     * would compile perfectly and serve one client's questions to another's providers. There is no
+     * later stage that would catch it, because nothing downstream re-checks ownership.
+     */
+    public FormDefinition handle(PlaceSection command) {
+        FormDefinition definition = requireDraft(command.formDefinitionId());
+
+        SectionDefinition section = sections.findById(command.sectionDefinitionId())
+                .orElseThrow(() -> new NotFound("Section", command.sectionDefinitionId()));
+
+        // Objects.equals rather than a direct call: nothing in the aggregates forbids a null tenant,
+        // so a direct .equals would turn a tenancy check into a 500 — the one failure mode a
+        // tenancy check must not have.
+        if (!java.util.Objects.equals(definition.tenantId(), section.tenantId())) {
+            throw new InvariantViolated("Section " + section.id() + " belongs to another tenant.");
+        }
+
+        int order = command.order() != null
+                ? command.order()
+                : definition.steps().stream().mapToInt(Step::order).max().orElse(0) + 10;
+
+        try {
+            return definitions.save(definition.placeStep(new Step(
+                    StepKey.of(command.stepKey()),
+                    section.id(),
+                    order,
+                    true,
+                    command.titleOverride(),
+                    command.group(),
+                    command.repeating(),
+                    null,
+                    null)));
+        } catch (IllegalArgumentException e) {
+            // Covers both an invalid step key and a duplicate one. Both are the caller's to fix and
+            // both already carry a message that says how, so re-wording here would only lose detail.
+            throw new InvariantViolated(e.getMessage());
+        }
+    }
+
+    public FormDefinition handle(RemoveStep command) {
+        FormDefinition definition = requireDraft(command.formDefinitionId());
+        try {
+            return definitions.save(definition.removeStep(command.stepKey()));
+        } catch (IllegalArgumentException e) {
+            throw new NotFound("Step", command.stepKey());
+        }
+    }
+
+    public FormDefinition handle(ReorderSteps command) {
+        FormDefinition definition = requireDraft(command.formDefinitionId());
+        try {
+            return definitions.save(definition.reorderSteps(command.orderedKeys()));
+        } catch (IllegalArgumentException e) {
+            throw new InvariantViolated(e.getMessage());
+        }
+    }
+
+    public FormDefinition handle(UpsertNamedCondition command) {
+        FormDefinition definition = requireDraft(command.formDefinitionId());
+        return definitions.save(definition.withNamedCondition(
+                new FormDefinition.NamedCondition(command.key(), command.label(), command.expression())));
+    }
+
+    public FormDefinition handle(RemoveNamedCondition command) {
+        FormDefinition definition = requireDraft(command.formDefinitionId());
+        if (!definition.namedConditions().containsKey(command.key())) {
+            throw new NotFound("Named condition", command.key());
+        }
+        try {
+            return definitions.save(definition.removeNamedCondition(command.key()));
+        } catch (IllegalStateException e) {
+            // Still referenced by steps. A conflict rather than an invariant violation: the request
+            // is well-formed and would be legal once those steps stop using it.
+            throw new ConflictingState(e.getMessage());
+        }
+    }
+
+    /**
+     * Promotes an assembled form into a reusable blueprint.
+     *
+     * <p>Resolves each placed section's source template first, because that is what a blueprint
+     * points at. Sections authored from scratch have none, and the aggregate refuses rather than
+     * quietly dropping those steps — so the author is told to promote the sections first, which is
+     * the actual dependency rather than a rule invented for this endpoint.
+     */
+    public FormBlueprint handle(CreateBlueprintFromForm command) {
         FormDefinition definition = definitions
                 .findById(command.formDefinitionId())
                 .orElseThrow(() -> new NotFound("Form definition", command.formDefinitionId()));
 
+        // 404 rather than 403, deliberately: a tenant asking about another tenant's form should not
+        // learn that it exists. Checked here and not only in PlaceSection, because the response
+        // carries the form's whole shape — step keys, grouping, conditions — and that is exactly what
+        // a competitor's configuration would be.
+        if (!java.util.Objects.equals(definition.tenantId(), command.tenantId())) {
+            throw new NotFound("Form definition", command.formDefinitionId());
+        }
+
+        List<String> sectionIds = definition.orderedSteps().stream()
+                .map(Step::sectionDefinitionId)
+                .distinct()
+                .toList();
+
+        Map<String, String> templateBySection = new LinkedHashMap<>();
+        for (SectionDefinition section : sections.findAllById(sectionIds)) {
+            if (section.sourceTemplateId() != null) {
+                templateBySection.put(section.id(), section.sourceTemplateId());
+            }
+        }
+
+        try {
+            return blueprints.save(FormBlueprint.fromForm(
+                    "bp_" + UUID.randomUUID(), command.key(), command.name(), definition, templateBySection));
+        } catch (IllegalStateException e) {
+            throw new InvariantViolated(e.getMessage());
+        }
+    }
+
+    /**
+     * Loads a form and refuses if it is published.
+     *
+     * <p>Every assembly verb goes through this. A published definition is the record of what was
+     * published — editing it would rewrite history for providers who are part-way through answering
+     * it, so the way forward is a new draft rather than a mutation.
+     */
+    private FormDefinition requireDraft(String formId) {
+        FormDefinition definition =
+                definitions.findById(formId).orElseThrow(() -> new NotFound("Form definition", formId));
+
         if (definition.status() == FormDefinition.DefinitionStatus.PUBLISHED) {
-            // A published definition is the record of what was published. Editing it would rewrite
-            // history for providers mid-application; a new draft is the way forward.
             throw new ConflictingState("Form " + definition.id()
                     + " is published. Editing it would change a form providers have already answered.");
         }
-
-        Step step = definition.step(command.stepKey()).orElseThrow(() -> new NotFound("Step", command.stepKey()));
-
-        return definitions.save(definition.replaceStep(step.withVisibleWhen(command.visibleWhen())));
+        return definition;
     }
 }

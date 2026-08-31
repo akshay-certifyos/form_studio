@@ -1,5 +1,6 @@
 package com.certifyos.forms.form_authoring.application.command;
 
+import com.certifyos.forms.shared_kernel.exception.InvariantViolated;
 import com.certifyos.forms.shared_kernel.expression.Expression;
 
 /**
@@ -13,10 +14,10 @@ public record UpdateStepCondition(String formDefinitionId, String stepKey, Expre
 
     public UpdateStepCondition {
         if (formDefinitionId == null || formDefinitionId.isBlank()) {
-            throw new IllegalArgumentException("A form definition id is required");
+            throw new InvariantViolated("A form definition id is required");
         }
         if (stepKey == null || stepKey.isBlank()) {
-            throw new IllegalArgumentException("A step key is required");
+            throw new InvariantViolated("A step key is required");
         }
     }
 }

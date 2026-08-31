@@ -187,7 +187,17 @@ public final class FixtureLoader {
                         p.path("sectionTemplateId").asText(),
                         p.path("order").asInt(),
                         p.hasNonNull("group") ? p.path("group").asText() : null,
-                        repeating(p.path("repeating"))));
+                        repeating(p.path("repeating")),
+                        expression(p.get("visibleWhen"))));
+            }
+
+            Map<String, FormDefinition.NamedCondition> conditions = new LinkedHashMap<>();
+            for (JsonNode c : node.path("namedConditions")) {
+                String key = c.path("key").asText();
+                conditions.put(
+                        key,
+                        new FormDefinition.NamedCondition(
+                                key, c.path("label").asText(), expression(c.get("expression"))));
             }
 
             JsonNode hints = node.path("recognitionHints");
@@ -200,6 +210,7 @@ public final class FixtureLoader {
                     node.path("entityType").asText("practitioner"),
                     new FormBlueprint.RecognitionHints(
                             strings(hints.path("requiredSectionTemplates")), strings(hints.path("keywords"))),
+                    conditions,
                     placements,
                     "deprecated".equalsIgnoreCase(node.path("status").asText("active"))
                             ? SectionTemplate.TemplateStatus.DEPRECATED
