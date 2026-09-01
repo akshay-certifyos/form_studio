@@ -16,6 +16,7 @@ import com.certifyos.forms.form_authoring.domain.reuse.SectionTemplate;
 import com.certifyos.forms.question_catalog.domain.OptionSet;
 import com.certifyos.forms.question_catalog.domain.Question;
 import com.certifyos.forms.question_catalog.domain.QuestionId;
+import com.certifyos.forms.question_catalog.domain.port.QuestionRepository;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -235,6 +236,69 @@ public final class InMemoryRepositories {
                     .filter(s -> keysNeeded.contains(s.key()))
                     .toList();
             return CatalogSnapshot.of(matched, matchedSets);
+        }
+    }
+
+    /**
+     * The catalog as an aggregate repository, distinct from {@link Catalog} above.
+     *
+     * <p>Both exist because both ports do: {@code QuestionCatalogPort} is how {@code form_authoring}
+     * reaches the catalog across a context boundary, and it returns a compile-time snapshot;
+     * {@code QuestionRepository} is the catalog's own repository and returns aggregates. Collapsing
+     * them in a test double would hide the boundary the design is proposing.
+     */
+    public static final class Questions implements QuestionRepository {
+        private final Map<QuestionId, Question> store = new LinkedHashMap<>();
+
+        public Questions with(Question... entries) {
+            for (Question entry : entries) {
+                store.put(entry.id(), entry);
+            }
+            return this;
+        }
+
+        @Override
+        public Optional<Question> findById(QuestionId id) {
+            return Optional.ofNullable(store.get(id));
+        }
+
+        /**
+         * Honours the requested ids rather than returning everything — the same discipline as
+         * {@link Catalog#resolve}, and for the same reason: a fake more permissive than the real
+         * thing hides the bugs it exists to surface.
+         */
+        @Override
+        public List<Question> findAllById(Collection<QuestionId> ids) {
+            return ids.stream()
+                    .map(store::get)
+                    .filter(java.util.Objects::nonNull)
+                    .toList();
+        }
+
+        @Override
+        public List<Question> findActiveFor(String tenantId) {
+            return store.values().stream()
+                    .filter(q -> q.status() == com.certifyos.forms.question_catalog.domain.CatalogStatus.ACTIVE)
+                    .filter(q -> q.tenantId() == null || q.tenantId().equals(tenantId))
+                    .toList();
+        }
+
+        @Override
+        public List<Question> search(String tenantId, String text, boolean includeProposed) {
+            String needle = text == null ? "" : text.toLowerCase(java.util.Locale.ROOT);
+            return store.values().stream()
+                    .filter(q -> includeProposed
+                            || q.status() == com.certifyos.forms.question_catalog.domain.CatalogStatus.ACTIVE)
+                    .filter(q -> needle.isEmpty()
+                            || q.label().toLowerCase(java.util.Locale.ROOT).contains(needle)
+                            || q.key().toLowerCase(java.util.Locale.ROOT).contains(needle))
+                    .toList();
+        }
+
+        @Override
+        public Question save(Question question) {
+            store.put(question.id(), question);
+            return question;
         }
     }
 

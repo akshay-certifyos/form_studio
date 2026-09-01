@@ -2,6 +2,7 @@ package com.certifyos.forms.config;
 
 import com.certifyos.forms.form_authoring.application.FormAuthoringService;
 import com.certifyos.forms.form_authoring.application.FormPublishingService;
+import com.certifyos.forms.form_authoring.application.RulesInventory;
 import com.certifyos.forms.form_authoring.application.SectionAuthoringService;
 import com.certifyos.forms.form_authoring.domain.port.DomainEventPublisher;
 import com.certifyos.forms.form_authoring.domain.port.FormBlueprintRepository;
@@ -44,6 +45,20 @@ public class ApplicationBeans {
             SectionTemplateRepository templates,
             SectionDefinitionRepository sections) {
         return new FormAuthoringService(definitions, blueprints, templates, sections);
+    }
+
+    /**
+     * A projection over three reads: forms, sections, and the catalog.
+     *
+     * <p>The catalog earns its place by turning {@code applicantDetails.specialty} into "Primary
+     * specialty". A rule an author cannot read is a rule they will not check, so on a screen whose
+     * entire purpose is inspection the label is not decoration.
+     */
+    @Produces
+    @ApplicationScoped
+    public RulesInventory rulesInventory(
+            FormDefinitionRepository definitions, SectionDefinitionRepository sections, QuestionRepository questions) {
+        return new RulesInventory(definitions, sections, questions);
     }
 
     @Produces

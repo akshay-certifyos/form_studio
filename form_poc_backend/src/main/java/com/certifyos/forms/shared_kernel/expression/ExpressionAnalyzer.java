@@ -79,6 +79,66 @@ public final class ExpressionAnalyzer {
         return paths;
     }
 
+    /**
+     * Named conditions an expression references, directly or through another ref.
+     *
+     * <p>Does <em>not</em> follow refs into their definitions to collect further refs — a ref chain
+     * is legal but the analyzer already rejects a cycle, so this reports what the expression itself
+     * names. That is what a rules inventory wants: "this step uses specialtyExempt", not the
+     * transitive closure of everything specialtyExempt happens to be built from.
+     */
+    public static Set<String> referencedConditions(Expression expression) {
+        Set<String> keys = new LinkedHashSet<>();
+        collectRefs(expression, keys);
+        return keys;
+    }
+
+    /**
+     * Operators an expression uses, in first-seen order.
+     *
+     * <p>Exists for the rules inventory, and it earns its place by answering a question that is
+     * otherwise guesswork: which operators are actually in use across a tenant. That decides what a
+     * migration has to support, and it is the difference between "the grammar has twelve operators"
+     * and "eleven of them have never been used".
+     */
+    public static Set<Operator> operatorsUsed(Expression expression) {
+        Set<Operator> operators = new LinkedHashSet<>();
+        collectOperators(expression, operators);
+        return operators;
+    }
+
+    private static void collectRefs(Expression expr, Set<String> keys) {
+        if (expr == null) {
+            return;
+        }
+        switch (expr) {
+            case Expression.Ref ref -> keys.add(ref.key());
+            case Expression.Not not -> collectRefs(not.operand(), keys);
+            case Expression.All all -> all.operands().forEach(e -> collectRefs(e, keys));
+            case Expression.Any any -> any.operands().forEach(e -> collectRefs(e, keys));
+            case Expression.Some some -> collectRefs(some.where(), keys);
+            case Expression.Every every -> collectRefs(every.where(), keys);
+            case Expression.Leaf ignored -> {}
+        }
+    }
+
+    private static void collectOperators(Expression expr, Set<Operator> operators) {
+        if (expr == null) {
+            return;
+        }
+        switch (expr) {
+            case Expression.Leaf leaf -> operators.add(leaf.operator());
+            case Expression.Not not -> collectOperators(not.operand(), operators);
+            case Expression.All all -> all.operands().forEach(e -> collectOperators(e, operators));
+            case Expression.Any any -> any.operands().forEach(e -> collectOperators(e, operators));
+            case Expression.Some some -> collectOperators(some.where(), operators);
+            case Expression.Every every -> collectOperators(every.where(), operators);
+                // A ref's operators belong to the named condition, which the inventory lists in its own
+                // right. Counting them here would double-count every shared rule.
+            case Expression.Ref ignored -> {}
+        }
+    }
+
     // ------------------------------------------------------------------
     // walk
     // ------------------------------------------------------------------

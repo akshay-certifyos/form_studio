@@ -45,7 +45,7 @@ form_poc/
 | `certifyos-frontend/packages/form-expression` | the TypeScript half of the grammar |
 | `certifyos-frontend/packages/form-studio-tests` | Playwright verification against a live stack |
 
-Test counts: **556** backend, **112** studio, **85** in the grammar package, **32** browser specs.
+Test counts: **571** backend, **130** studio, **85** in the grammar package, **46** browser specs.
 
 ## Running it
 
@@ -60,7 +60,7 @@ brew services start mongodb-community    # :27017
 
 cd form_poc_backend
 make dev        # :9100, seeds fixtures on startup
-make test       # 556 tests, no Mongo and no Docker needed
+make test       # 571 tests, no Mongo and no Docker needed
 make check      # format check + tests + ArchUnit
 ```
 
@@ -109,6 +109,12 @@ Sections and forms accumulate in the dev database as you use the studio and the 
 there is no delete endpoint for either — see `packages/form-studio-tests/README.md` for why the specs
 key everything to the run. To start clean:
 `mongosh --eval 'db.getSiblingDB("form_poc").dropDatabase()'` and restart the backend.
+
+The studio carries its own reference for authors at `/docs/rules`, and a **Rules** screen at `/rules`
+listing every condition across every form — including the steps that have none, which is how the
+production defect this design targets becomes visible. The operator table on the docs page is
+generated from the operator registry and its worked examples are evaluated live by the same grammar,
+so neither can drift from the implementation.
 
 Three features are stored by the model and **not** compiled: hard stops, grouped questions, and a
 step's audience rule. Each raises a compilation notice rather than vanishing, so an author is told
