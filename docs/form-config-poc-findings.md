@@ -261,9 +261,9 @@ field names, which caps how much automatic matching can achieve.
 | **The rule set is inspectable, including its gaps** | One read returns every step, named and question condition with what each depends on — resolved *through* refs, so a step gated only by a name still reports the question underneath. Unconditioned steps are listed rather than filtered, which is the only way the Florida Blue defect is visible at all |
 | Normalisation pays off, measured | **18 inline option lists collapse to 3**; `yes/no` alone was pasted 14 times |
 
-Test counts: **582** backend, **130** studio, **85** in the grammar package (84 conformance fixtures
+Test counts: **582** backend, **147** studio, **85** in the grammar package (84 conformance fixtures
 plus one guard that the fixture set actually loaded — an empty set would otherwise pass vacuously),
-and **46** browser specs against a live stack. A clean clone of the repository builds and passes.
+and **59** browser specs against a live stack. A clean clone of the repository builds and passes.
 
 The browser suite matters disproportionately, because it is the only thing that can check the two
 claims that matter most: that the artifact the compiler produces is renderable, and that an edit made

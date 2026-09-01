@@ -45,7 +45,7 @@ form_poc/
 | `certifyos-frontend/packages/form-expression` | the TypeScript half of the grammar |
 | `certifyos-frontend/packages/form-studio-tests` | Playwright verification against a live stack |
 
-Test counts: **582** backend, **130** studio, **85** in the grammar package, **46** browser specs.
+Test counts: **582** backend, **147** studio, **85** in the grammar package, **59** browser specs.
 
 ## Running it
 
@@ -115,6 +115,11 @@ Sections and forms accumulate in the dev database as you use the studio and the 
 there is no delete endpoint for either — see `packages/form-studio-tests/README.md` for why the specs
 key everything to the run. To start clean:
 `mongosh --eval 'db.getSiblingDB("form_poc").dropDatabase()'` and restart the backend.
+
+The studio has a grouped left rail — **Authoring** (forms, sections, rules), **Catalog** (questions,
+option sets), **Library** (blueprints, section templates), **Docs**. Note that the rules *inventory*
+sits under Authoring and the rules *documentation* under Docs: one is live data about this tenant and
+changes whenever a form does, the other is reference that changes when the grammar does.
 
 The studio carries its own reference for authors at `/docs/rules`, and a **Rules** screen at `/rules`
 listing every condition across every form — including the steps that have none, which is how the
