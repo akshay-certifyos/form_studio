@@ -263,7 +263,7 @@ field names, which caps how much automatic matching can achieve.
 
 Test counts: **582** backend, **147** studio, **85** in the grammar package (84 conformance fixtures
 plus one guard that the fixture set actually loaded — an empty set would otherwise pass vacuously),
-and **59** browser specs against a live stack. A clean clone of the repository builds and passes.
+and **62** browser specs against a live stack. A clean clone of the repository builds and passes.
 
 The browser suite matters disproportionately, because it is the only thing that can check the two
 claims that matter most: that the artifact the compiler produces is renderable, and that an edit made

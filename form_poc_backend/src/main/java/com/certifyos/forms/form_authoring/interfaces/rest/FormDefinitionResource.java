@@ -309,8 +309,15 @@ public class FormDefinitionResource {
     @GET
     @Operation(summary = "List a tenant's forms")
     public List<FormSummaryView> list(@PathParam("tenantId") String tenantId) {
+        // One version lookup per form. A join would be better at scale, but the honest alternative
+        // here was to omit the column — and "which version is actually live" is the first thing
+        // anyone asks of a forms list.
         return definitions.findByTenant(tenantId).stream()
-                .map(FormSummaryView::of)
+                .map(definition -> FormSummaryView.of(
+                        definition,
+                        versions.findActive(definition.id())
+                                .map(version -> version.version())
+                                .orElse(null)))
                 .toList();
     }
 
