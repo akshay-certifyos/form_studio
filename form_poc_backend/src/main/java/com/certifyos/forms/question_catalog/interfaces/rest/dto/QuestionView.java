@@ -14,6 +14,12 @@ public record QuestionView(
         String label,
         String helpText,
         String responseType,
+        /**
+         * The shelf this question sits on. A key, not a label — the client already fetches the
+         * category list to render headings, and sending the label per question would repeat it once
+         * per question while opening the door to the two disagreeing.
+         */
+        String categoryKey,
         String optionSetKey,
         String filteredBy,
         String status,
@@ -31,6 +37,7 @@ public record QuestionView(
                 question.label(),
                 question.helpText(),
                 question.responseType().wireName(),
+                question.categoryKey(),
                 question.optionSetKey(),
                 question.filteredBy(),
                 question.status().wireName(),

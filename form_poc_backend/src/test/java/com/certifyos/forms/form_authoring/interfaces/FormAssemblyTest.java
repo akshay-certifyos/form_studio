@@ -808,6 +808,7 @@ class FormAssemblyTest {
                 List.of(),
                 null,
                 CatalogStatus.ACTIVE,
-                Set.of());
+                Set.of(),
+                "identity");
     }
 }

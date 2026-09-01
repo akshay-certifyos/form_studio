@@ -66,7 +66,8 @@ class FormVersionDocumentTest {
                 List.of(),
                 null,
                 CatalogStatus.ACTIVE,
-                Set.of());
+                Set.of(),
+                "identity");
 
         Question providerType = new Question(
                 PROVIDER_TYPE,
@@ -82,7 +83,8 @@ class FormVersionDocumentTest {
                 List.of(),
                 null,
                 CatalogStatus.ACTIVE,
-                Set.of());
+                Set.of(),
+                "identity");
 
         Question city = new Question(
                 CITY,
@@ -98,7 +100,8 @@ class FormVersionDocumentTest {
                 List.of(),
                 null,
                 CatalogStatus.ACTIVE,
-                Set.of());
+                Set.of(),
+                "identity");
 
         OptionSet providerTypes = new OptionSet(
                 "os_pt",

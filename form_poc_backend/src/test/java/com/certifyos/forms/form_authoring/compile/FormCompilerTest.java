@@ -65,7 +65,8 @@ class FormCompilerTest {
                 List.of(),
                 null,
                 CatalogStatus.ACTIVE,
-                Set.of());
+                Set.of(),
+                "identity");
     }
 
     private static final OptionSet PROVIDER_TYPES = new OptionSet(
@@ -105,7 +106,8 @@ class FormCompilerTest {
                                 List.of(),
                                 null,
                                 CatalogStatus.ACTIVE,
-                                Set.of())),
+                                Set.of(),
+                                "identity")),
                 List.of(PROVIDER_TYPES));
     }
 

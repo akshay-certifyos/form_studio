@@ -44,7 +44,18 @@ public record Question(
          */
         String filteredBy,
         CatalogStatus status,
-        Set<String> tags) {
+        Set<String> tags,
+        /**
+         * What this question is about. Required — a question outside the taxonomy is a question nobody
+         * browsing the catalog will find, which is how a catalog of 34 entries becomes unusable at 300.
+         *
+         * <p>A key into {@link QuestionCategory}, not a free-text label. Free text is the same failure
+         * this record's {@link #aliases} exists to prevent, one level up: "Identity", "identity" and
+         * "Personal info" as three shelves holding the same thing. Referential integrity is checked
+         * where the reference is made — a record cannot see a repository — and by a fixture test, for
+         * the same reason the template references have one.
+         */
+        String categoryKey) {
 
     public Question {
         if (id == null) {
@@ -58,6 +69,11 @@ public record Question(
         }
         if (responseType == null) {
             throw new IllegalArgumentException("Question responseType is required");
+        }
+        if (categoryKey == null || categoryKey.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Question '" + key + "' needs a category — every question belongs to one, and an "
+                            + "uncategorised question is invisible to anyone browsing the catalog");
         }
         if (responseType.isSelect() && (optionSetKey == null || optionSetKey.isBlank())) {
             throw new IllegalArgumentException(
@@ -120,7 +136,8 @@ public record Question(
                 children,
                 filteredBy,
                 status,
-                tags);
+                tags,
+                categoryKey);
     }
 
     private Question withStatus(CatalogStatus next) {
@@ -138,7 +155,8 @@ public record Question(
                 children,
                 filteredBy,
                 next,
-                tags);
+                tags,
+                categoryKey);
     }
 
     /** Label plus every alias, lower-cased — what the duplicate detector compares. */

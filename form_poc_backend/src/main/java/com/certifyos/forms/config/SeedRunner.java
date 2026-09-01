@@ -6,6 +6,7 @@ import com.certifyos.forms.form_authoring.domain.port.FormDefinitionRepository;
 import com.certifyos.forms.form_authoring.domain.port.SectionDefinitionRepository;
 import com.certifyos.forms.form_authoring.domain.port.SectionTemplateRepository;
 import com.certifyos.forms.question_catalog.domain.port.OptionSetRepository;
+import com.certifyos.forms.question_catalog.domain.port.QuestionCategoryRepository;
 import com.certifyos.forms.question_catalog.domain.port.QuestionRepository;
 import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -55,6 +56,7 @@ public class SeedRunner {
 
     private final QuestionRepository questions;
     private final OptionSetRepository optionSets;
+    private final QuestionCategoryRepository categories;
     private final SectionTemplateRepository templates;
     private final FormBlueprintRepository blueprints;
     private final SectionDefinitionRepository sections;
@@ -64,12 +66,14 @@ public class SeedRunner {
     public SeedRunner(
             QuestionRepository questions,
             OptionSetRepository optionSets,
+            QuestionCategoryRepository categories,
             SectionTemplateRepository templates,
             FormBlueprintRepository blueprints,
             SectionDefinitionRepository sections,
             FormDefinitionRepository forms) {
         this.questions = questions;
         this.optionSets = optionSets;
+        this.categories = categories;
         this.templates = templates;
         this.blueprints = blueprints;
         this.sections = sections;
@@ -144,6 +148,10 @@ public class SeedRunner {
             }
 
             LOG.infof("Seeding from %s", resolved);
+            // Categories before questions: a question carries a category key, and seeding the
+            // reference before the thing it points at is how a fixture set ends up internally
+            // inconsistent the first time anything validates it.
+            fixtures.questionCategories().forEach(categories::save);
             fixtures.optionSets().forEach(optionSets::save);
             fixtures.questions().forEach(questions::save);
             // Templates and blueprints before the definitions that reference them, so a mid-seed

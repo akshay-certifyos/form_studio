@@ -4,6 +4,7 @@ import com.certifyos.forms.question_catalog.application.CatalogService;
 import com.certifyos.forms.question_catalog.domain.QuestionId;
 import com.certifyos.forms.question_catalog.interfaces.rest.dto.OptionSetView;
 import com.certifyos.forms.question_catalog.interfaces.rest.dto.PromotionResultView;
+import com.certifyos.forms.question_catalog.interfaces.rest.dto.QuestionCategoryView;
 import com.certifyos.forms.question_catalog.interfaces.rest.dto.QuestionView;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.inject.Inject;
@@ -33,6 +34,21 @@ public class QuestionCatalogResource {
     @Inject
     public QuestionCatalogResource(CatalogService catalog) {
         this.catalog = catalog;
+    }
+
+    /**
+     * The catalog's taxonomy, in display order, each with a count.
+     *
+     * <p>Its own endpoint rather than a field on every question: the headings are needed once per
+     * screen, and repeating a label per question is both wasteful and a way for the two to disagree.
+     */
+    @GET
+    @Path("/categories")
+    @Operation(operationId = "listQuestionCategories", summary = "Catalog categories, in display order")
+    public List<QuestionCategoryView> categories(@PathParam("tenantId") String tenantId) {
+        return catalog.categories(tenantId).stream()
+                .map(entry -> QuestionCategoryView.of(entry.category(), entry.questionCount()))
+                .toList();
     }
 
     /** Searches label, aliases and key — a payer's phrasing is usually an alias, not the label. */

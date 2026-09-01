@@ -317,6 +317,7 @@ Values are catalogued separately from response type (the widget). Conditional fi
   "label": "National Provider Identifier (NPI)",
   "helpText": "Your 10-digit individual NPI",
   "responseType": "text",
+  "categoryKey": "identity",
   "optionSetKey": null,
   "children": null,
   "validations": [
@@ -332,10 +333,51 @@ Values are catalogued separately from response type (the widget). Conditional fi
 }
 ```
 
-Two fields doing significant work:
+Three fields doing significant work:
 
 - **`platformMapping`** — defined once globally. This is what collapses N tenants × M forms of hand-written `fieldMappings` string paths into one table.
 - **`aliases`** — improves matching, and is where payer-specific phrasings are parked **instead of minting near-duplicate catalog entries**.
+- **`categoryKey`** — required, and a key into `question_categories` rather than a label. See §5.2a.
+
+### 5.2a `question_categories`
+
+```json
+{ "_id": "identity", "label": "Identity & identifiers",
+  "description": "Who the provider is, and the numbers that identify them across systems.",
+  "order": 10 }
+```
+
+**Every question belongs to exactly one category, and the reference is required.** Without it a
+catalog is a flat alphabetical list, which works at 34 entries and fails at 300 in a specific way:
+picking from a flat list requires already knowing what you are looking for, so an author adds the
+questions they remember and never discovers the rest — which is how a shared catalog stops being
+shared.
+
+**Stored, not an enum.** Both are closed vocabularies, and P4 asks for closed vocabularies *not
+expressed as code* — an enum would mean a release to add "Behavioral health", which is the cost this
+design exists to remove. This is the `option_sets` pattern: you cannot invent a category by typing,
+and you can add one by configuring.
+
+**A category is intrinsic to the question, never to where it is used.** "Do you have a CAQH ID?" sits
+in Identity & identifiers even though the Florida Blue form asks it inside Billing Setup: the section
+decides placement, the category decides the shelf. Conflating them would give one question a different
+category per form, at which point the taxonomy carries no information.
+
+**Global, never per tenant.** A taxonomy that varies by tenant cannot group a shared catalog — the
+value of browsing by category is that every tenant sees the same shelves.
+
+`order` is explicit rather than alphabetical, because the useful sequence follows how a credentialing
+file is assembled: identity first, attestation last. Alphabetical would open with Attestation, which
+is the last thing anyone fills in.
+
+Referential integrity is enforced where a reference is made, not in the record — an aggregate cannot
+see a repository — and by `CategoryFixtureTest`, which also asserts no category is empty. That last
+one is a rule about the fixtures rather than the model: a taxonomy invented ahead of its content is a
+guess, and this design's whole argument is that shapes get promoted from real use.
+
+The key is the document id. Unlike questions and option sets there is no surrogate id, because a
+category has no identity apart from its key, and a second one would be another thing to keep in step
+for no gain.
 
 Grouped inputs (PRD §2.4 — per-field required-ness within a group):
 
@@ -994,6 +1036,7 @@ A sealed hierarchy gives an exhaustive switch — adding a domain exception with
 ### `question_catalog`
 
 ```
+GET    /api/v1/tenants/{tenantId}/catalog/categories                  the taxonomy, in order, with counts
 GET    /api/v1/tenants/{tenantId}/catalog/questions                   search; includeProposed opts in
 GET    /api/v1/tenants/{tenantId}/catalog/questions/{questionId}
 POST   /api/v1/tenants/{tenantId}/catalog/questions/{id}/promote      proposed → active, dedupe-checked

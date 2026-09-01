@@ -1,0 +1,58 @@
+{
+  "_comment": [
+    "The catalog's taxonomy. Stored rather than compiled, so adding a category is configuration —",
+    "which is the whole argument of this POC applied to itself.",
+    "",
+    "A category says what a question IS, never where it is used. 'Do you have a CAQH ID?' sits in",
+    "Identity & identifiers even though the Florida Blue form asks it inside Billing Setup: the",
+    "section decides placement, the category decides the shelf. Conflating them would give one",
+    "question a different category per form, and the taxonomy would carry no information.",
+    "",
+    "Seven categories for 34 questions. Deliberately chunky: a browse panel with fifteen headings is",
+    "a list with extra steps, and the groups are only useful if a reader can hold them all in view."
+  ],
+  "questionCategories": [
+    {
+      "key": "identity",
+      "label": "Identity & identifiers",
+      "description": "Who the provider is, and the numbers that identify them across systems.",
+      "order": 10
+    },
+    {
+      "key": "contact",
+      "label": "Contact & address",
+      "description": "Where the provider practises and how to reach them.",
+      "order": 20
+    },
+    {
+      "key": "professional",
+      "label": "Professional profile",
+      "description": "Training, specialty, board status and affiliations.",
+      "order": 30
+    },
+    {
+      "key": "licensure",
+      "label": "Licensure & registration",
+      "description": "State licences and controlled-substance registrations, with their dates.",
+      "order": 40
+    },
+    {
+      "key": "insurance",
+      "label": "Insurance",
+      "description": "Malpractice coverage: carrier, policy and expiry.",
+      "order": 50
+    },
+    {
+      "key": "billing",
+      "label": "Billing & remittance",
+      "description": "Where payment goes, and how it differs from the practice address.",
+      "order": 60
+    },
+    {
+      "key": "attestation",
+      "label": "Attestation",
+      "description": "What the provider signs to.",
+      "order": 70
+    }
+  ]
+}

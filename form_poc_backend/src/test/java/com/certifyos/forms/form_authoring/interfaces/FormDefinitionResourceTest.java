@@ -89,7 +89,8 @@ class FormDefinitionResourceTest {
                 List.of(),
                 null,
                 CatalogStatus.ACTIVE,
-                Set.of()));
+                Set.of(),
+                "identity"));
         questions.save(new Question(
                 PROVIDER_TYPE,
                 null,
@@ -104,7 +105,8 @@ class FormDefinitionResourceTest {
                 List.of(),
                 null,
                 CatalogStatus.ACTIVE,
-                Set.of()));
+                Set.of(),
+                "identity"));
         questions.save(new Question(
                 LINE1,
                 null,
@@ -119,7 +121,8 @@ class FormDefinitionResourceTest {
                 List.of(),
                 null,
                 CatalogStatus.ACTIVE,
-                Set.of()));
+                Set.of(),
+                "identity"));
 
         optionSets.save(new OptionSet(
                 "os_pt",

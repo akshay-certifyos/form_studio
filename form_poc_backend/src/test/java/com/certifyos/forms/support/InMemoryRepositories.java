@@ -15,7 +15,9 @@ import com.certifyos.forms.form_authoring.domain.reuse.FormBlueprint;
 import com.certifyos.forms.form_authoring.domain.reuse.SectionTemplate;
 import com.certifyos.forms.question_catalog.domain.OptionSet;
 import com.certifyos.forms.question_catalog.domain.Question;
+import com.certifyos.forms.question_catalog.domain.QuestionCategory;
 import com.certifyos.forms.question_catalog.domain.QuestionId;
+import com.certifyos.forms.question_catalog.domain.port.QuestionCategoryRepository;
 import com.certifyos.forms.question_catalog.domain.port.QuestionRepository;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -299,6 +301,36 @@ public final class InMemoryRepositories {
         public Question save(Question question) {
             store.put(question.id(), question);
             return question;
+        }
+    }
+
+    /** The catalog's taxonomy. Empty by default; a test that needs a shelf declares it. */
+    public static final class Categories implements QuestionCategoryRepository {
+        private final Map<String, QuestionCategory> store = new LinkedHashMap<>();
+
+        public Categories with(QuestionCategory... entries) {
+            for (QuestionCategory entry : entries) {
+                store.put(entry.key(), entry);
+            }
+            return this;
+        }
+
+        @Override
+        public Optional<QuestionCategory> findByKey(String key) {
+            return Optional.ofNullable(store.get(key));
+        }
+
+        @Override
+        public List<QuestionCategory> findAll() {
+            return store.values().stream()
+                    .sorted(Comparator.comparingInt(QuestionCategory::order))
+                    .toList();
+        }
+
+        @Override
+        public QuestionCategory save(QuestionCategory category) {
+            store.put(category.key(), category);
+            return category;
         }
     }
 

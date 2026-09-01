@@ -13,8 +13,10 @@ import com.certifyos.forms.form_authoring.domain.reuse.SectionTemplate;
 import com.certifyos.forms.question_catalog.domain.CatalogStatus;
 import com.certifyos.forms.question_catalog.domain.OptionSet;
 import com.certifyos.forms.question_catalog.domain.Question;
+import com.certifyos.forms.question_catalog.domain.QuestionCategory;
 import com.certifyos.forms.question_catalog.domain.QuestionId;
 import com.certifyos.forms.question_catalog.domain.port.OptionSetRepository;
+import com.certifyos.forms.question_catalog.domain.port.QuestionCategoryRepository;
 import com.certifyos.forms.question_catalog.domain.port.QuestionRepository;
 import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -223,6 +225,58 @@ public final class TestRepositories {
         public FormVersion save(FormVersion version) {
             store.put(version.id(), version);
             return version;
+        }
+    }
+
+    /**
+     * The catalog's taxonomy.
+     *
+     * <p>Seeded with the real category keys rather than left empty, because every question in every
+     * test now references one — an empty taxonomy would make each of those references dangle, and the
+     * screens under test would render an empty shelf instead of failing.
+     */
+    @Alternative
+    @Priority(1)
+    @ApplicationScoped
+    public static class Categories implements QuestionCategoryRepository, Resettable {
+        private final Map<String, QuestionCategory> store = new LinkedHashMap<>();
+
+        public Categories() {
+            reset();
+        }
+
+        @Override
+        public void reset() {
+            store.clear();
+            seed("identity", "Identity & identifiers", 10);
+            seed("contact", "Contact & address", 20);
+            seed("professional", "Professional profile", 30);
+            seed("licensure", "Licensure & registration", 40);
+            seed("insurance", "Insurance", 50);
+            seed("billing", "Billing & remittance", 60);
+            seed("attestation", "Attestation", 70);
+        }
+
+        private void seed(String key, String label, int order) {
+            store.put(key, new QuestionCategory(key, label, null, order));
+        }
+
+        @Override
+        public Optional<QuestionCategory> findByKey(String key) {
+            return Optional.ofNullable(store.get(key));
+        }
+
+        @Override
+        public List<QuestionCategory> findAll() {
+            return store.values().stream()
+                    .sorted(Comparator.comparingInt(QuestionCategory::order))
+                    .toList();
+        }
+
+        @Override
+        public QuestionCategory save(QuestionCategory category) {
+            store.put(category.key(), category);
+            return category;
         }
     }
 

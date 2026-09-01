@@ -58,7 +58,8 @@ class CompilerNoticeTest {
                 List.of(),
                 null,
                 CatalogStatus.ACTIVE,
-                Set.of());
+                Set.of(),
+                "identity");
     }
 
     /** A question with sub-inputs — the "grouped input" shape production uses for addresses. */
@@ -80,7 +81,8 @@ class CompilerNoticeTest {
                 children,
                 null,
                 CatalogStatus.ACTIVE,
-                Set.of());
+                Set.of(),
+                "identity");
     }
 
     private static QuestionInstance instance(QuestionId id, String key, int order) {

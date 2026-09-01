@@ -483,7 +483,8 @@ class RulesInventoryTest {
                 List.of(),
                 null,
                 com.certifyos.forms.question_catalog.domain.CatalogStatus.ACTIVE,
-                java.util.Set.of());
+                java.util.Set.of(),
+                "identity");
     }
 
     private static SectionDefinition section(String id, String key, String name) {

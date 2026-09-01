@@ -13,6 +13,7 @@ import com.certifyos.forms.form_authoring.domain.port.SectionDefinitionRepositor
 import com.certifyos.forms.form_authoring.domain.port.SectionTemplateRepository;
 import com.certifyos.forms.question_catalog.application.CatalogService;
 import com.certifyos.forms.question_catalog.domain.port.OptionSetRepository;
+import com.certifyos.forms.question_catalog.domain.port.QuestionCategoryRepository;
 import com.certifyos.forms.question_catalog.domain.port.QuestionRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;
@@ -82,7 +83,8 @@ public class ApplicationBeans {
 
     @Produces
     @ApplicationScoped
-    public CatalogService catalogService(QuestionRepository questions, OptionSetRepository optionSets) {
-        return new CatalogService(questions, optionSets);
+    public CatalogService catalogService(
+            QuestionRepository questions, OptionSetRepository optionSets, QuestionCategoryRepository categories) {
+        return new CatalogService(questions, optionSets, categories);
     }
 }

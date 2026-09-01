@@ -45,7 +45,7 @@ form_poc/
 | `certifyos-frontend/packages/form-expression` | the TypeScript half of the grammar |
 | `certifyos-frontend/packages/form-studio-tests` | Playwright verification against a live stack |
 
-Test counts: **582** backend, **147** studio, **85** in the grammar package, **62** browser specs.
+Test counts: **587** backend, **157** studio, **85** in the grammar package, **71** browser specs.
 
 ## Running it
 
@@ -60,7 +60,7 @@ brew services start mongodb-community    # :27017
 
 cd form_poc_backend
 make dev        # :9100, seeds fixtures on startup
-make test       # 582 tests, no Mongo and no Docker needed
+make test       # 587 tests, no Mongo and no Docker needed
 make check      # format check + tests + ArchUnit
 ```
 
@@ -121,6 +121,12 @@ option sets), **Library** (blueprints, section templates), **Docs** — each des
 count, and a bar naming the current screen and holding its one action. Note that the rules *inventory*
 sits under Authoring and the rules *documentation* under Docs: one is live data about this tenant and
 changes whenever a form does, the other is reference that changes when the grammar does.
+
+**Every question belongs to a category** — a stored taxonomy referenced by key, not an enum, so
+adding a shelf is configuration. The section editor puts the catalog beside the section you are
+filling, grouped by category, with what is already there marked rather than hidden. A category says
+what a question *is*, never where it is used: "Do you have a CAQH ID?" sits in Identity & identifiers
+even though the Florida Blue form asks it inside Billing Setup.
 
 The studio carries its own reference for authors at `/docs/rules`, and a **Rules** screen at `/rules`
 listing every condition across every form — including the steps that have none, which is how the

@@ -41,6 +41,8 @@ public class QuestionDocument {
     public List<String> tags = new ArrayList<>();
     public List<QuestionDocument> children = new ArrayList<>();
 
+    public String categoryKey;
+
     public static class ValidationDoc {
         public String rule;
         public Map<String, Object> params = new LinkedHashMap<>();
@@ -60,6 +62,7 @@ public class QuestionDocument {
         doc.platformMapping = new LinkedHashMap<>(question.platformMapping());
         doc.aliases = new ArrayList<>(question.aliases());
         doc.tags = new ArrayList<>(question.tags());
+        doc.categoryKey = question.categoryKey();
 
         for (ValidationRule rule : question.validations()) {
             ValidationDoc v = new ValidationDoc();
@@ -72,11 +75,19 @@ public class QuestionDocument {
     }
 
     public Question toDomain() {
+        return toDomain(categoryKey);
+    }
+
+    private Question toDomain(String inheritedCategory) {
         List<ValidationRule> rules = new ArrayList<>();
         validations.forEach(v -> rules.add(new ValidationRule(v.rule, v.params)));
 
         List<Question> childQuestions = new ArrayList<>();
-        children.forEach(c -> childQuestions.add(c.toDomain()));
+        // A child inherits its parent's category. It is structurally a Question and so must have
+        // one, but semantically it is a field of its parent — making an author state "line 2 is in
+        // Contact & address" for every sub-field would be noise, and a child on a different shelf
+        // from its parent would be a bug rather than a feature.
+        children.forEach(c -> childQuestions.add(c.toDomain(inheritedCategory)));
 
         return new Question(
                 QuestionId.of(id),
@@ -93,6 +104,7 @@ public class QuestionDocument {
                 childQuestions,
                 filteredBy,
                 CatalogStatus.fromWireName(status).orElse(CatalogStatus.PROPOSED),
-                new LinkedHashSet<>(tags));
+                new LinkedHashSet<>(tags),
+                inheritedCategory);
     }
 }

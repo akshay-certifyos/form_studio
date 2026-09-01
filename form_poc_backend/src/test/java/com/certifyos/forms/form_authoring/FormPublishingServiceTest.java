@@ -73,7 +73,8 @@ class FormPublishingServiceTest {
                 List.of(),
                 null,
                 CatalogStatus.ACTIVE,
-                Set.of());
+                Set.of(),
+                "identity");
     }
 
     private static final OptionSet PROVIDER_TYPES = new OptionSet(
@@ -153,7 +154,8 @@ class FormPublishingServiceTest {
                                 List.of(),
                                 null,
                                 CatalogStatus.ACTIVE,
-                                Set.of()))
+                                Set.of(),
+                                "identity"))
                 .with(PROVIDER_TYPES);
 
         service =

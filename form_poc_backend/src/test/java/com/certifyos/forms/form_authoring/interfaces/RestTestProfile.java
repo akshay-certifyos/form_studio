@@ -23,6 +23,7 @@ public class RestTestProfile implements QuarkusTestProfile {
                 TestRepositories.Sections.class,
                 TestRepositories.Versions.class,
                 TestRepositories.Questions.class,
+                TestRepositories.Categories.class,
                 TestRepositories.OptionSets.class,
                 TestRepositories.Templates.class,
                 TestRepositories.Blueprints.class);

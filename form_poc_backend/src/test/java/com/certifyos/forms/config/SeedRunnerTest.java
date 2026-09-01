@@ -38,6 +38,7 @@ class SeedRunnerTest {
     private TestRepositories.OptionSets optionSets;
     private InMemoryRepositories.Templates templates;
     private InMemoryRepositories.Blueprints blueprints;
+    private TestRepositories.Categories categories;
     private SeedRunner runner;
 
     @BeforeEach
@@ -46,10 +47,11 @@ class SeedRunnerTest {
         sections = new InMemoryRepositories.Sections();
         questions = new TestRepositories.Questions();
         optionSets = new TestRepositories.OptionSets();
+        categories = new TestRepositories.Categories();
 
         templates = new InMemoryRepositories.Templates();
         blueprints = new InMemoryRepositories.Blueprints();
-        runner = new SeedRunner(questions, optionSets, templates, blueprints, sections, forms);
+        runner = new SeedRunner(questions, optionSets, categories, templates, blueprints, sections, forms);
         runner.enabled = true;
         runner.force = false;
         runner.fixturesDir = "../form_poc_shared/fixtures";

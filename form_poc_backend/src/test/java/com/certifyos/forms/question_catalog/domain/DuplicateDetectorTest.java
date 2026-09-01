@@ -36,7 +36,8 @@ class DuplicateDetectorTest {
                 List.of(),
                 null,
                 status,
-                Set.of());
+                Set.of(),
+                "identity");
     }
 
     private static Question active(String id, String key, String label, String... aliases) {
@@ -188,7 +189,8 @@ class DuplicateDetectorTest {
                             List.of(),
                             null,
                             CatalogStatus.ACTIVE,
-                            Set.of()));
+                            Set.of(),
+                            "identity"));
             assertTrue(e.getMessage().contains("option set"));
         }
 
@@ -211,7 +213,8 @@ class DuplicateDetectorTest {
                             List.of(),
                             null,
                             CatalogStatus.ACTIVE,
-                            Set.of()));
+                            Set.of(),
+                            "identity"));
         }
 
         @Test

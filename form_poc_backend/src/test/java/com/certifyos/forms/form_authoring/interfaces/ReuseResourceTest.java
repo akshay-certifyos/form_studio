@@ -166,7 +166,8 @@ class ReuseResourceTest {
                 List.of(),
                 null,
                 CatalogStatus.ACTIVE,
-                Set.of());
+                Set.of(),
+                "identity");
     }
 
     private String path() {

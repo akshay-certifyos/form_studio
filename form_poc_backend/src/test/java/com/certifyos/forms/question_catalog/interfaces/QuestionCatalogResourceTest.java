@@ -58,7 +58,8 @@ class QuestionCatalogResourceTest {
                 List.of(),
                 null,
                 status,
-                Set.of("identity"));
+                Set.of("identity"),
+                "identity");
     }
 
     @BeforeEach

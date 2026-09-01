@@ -12,6 +12,7 @@ import com.certifyos.forms.form_authoring.domain.reuse.SectionTemplate;
 import com.certifyos.forms.question_catalog.domain.CatalogStatus;
 import com.certifyos.forms.question_catalog.domain.OptionSet;
 import com.certifyos.forms.question_catalog.domain.Question;
+import com.certifyos.forms.question_catalog.domain.QuestionCategory;
 import com.certifyos.forms.question_catalog.domain.QuestionId;
 import com.certifyos.forms.question_catalog.domain.ResponseType;
 import com.certifyos.forms.question_catalog.domain.ValidationRule;
@@ -50,6 +51,7 @@ public final class FixtureLoader {
     /** Everything the fixtures describe, already validated by the domain's own constructors. */
     public record Fixtures(
             List<Question> questions,
+            List<QuestionCategory> questionCategories,
             List<OptionSet> optionSets,
             List<SectionTemplate> sectionTemplates,
             List<FormBlueprint> formBlueprints,
@@ -59,6 +61,7 @@ public final class FixtureLoader {
     public Fixtures load() throws IOException {
         return new Fixtures(
                 loadQuestions(),
+                loadQuestionCategories(),
                 loadOptionSets(),
                 loadSectionTemplates(),
                 loadFormBlueprints(),
@@ -109,7 +112,20 @@ public final class FixtureLoader {
                 List.of(),
                 node.path("filteredBy").asText(null),
                 CatalogStatus.fromWireName(node.path("status").asText("active")).orElse(CatalogStatus.PROPOSED),
-                textSet(node.path("tags")));
+                textSet(node.path("tags")),
+                node.path("categoryKey").asText(null));
+    }
+
+    private List<QuestionCategory> loadQuestionCategories() throws IOException {
+        List<QuestionCategory> out = new ArrayList<>();
+        for (JsonNode node : readOptional("question-categories.json").path("questionCategories")) {
+            out.add(new QuestionCategory(
+                    node.path("key").asText(),
+                    node.path("label").asText(),
+                    node.path("description").asText(null),
+                    node.path("order").asInt()));
+        }
+        return out;
     }
 
     private List<OptionSet> loadOptionSets() throws IOException {
