@@ -20,7 +20,7 @@ out/
 # is a POC repository, so they stay on the machine that needs them.
 #
 # Nothing in the build reads them: the expressiveness audit
-# (provider-portal-api/docs/form-config-poc-expressiveness-audit.md) was done by
+# (docs/form-config-poc-expressiveness-audit.md) was done by
 # inspection, and its findings are recorded there in full. Drop the files back
 # into the path below if you want to re-derive them.
 form_poc_shared/real-forms/

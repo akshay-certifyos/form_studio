@@ -92,11 +92,17 @@ constructs the model cannot express and the measured normalisation payoff.
 
 ## Design and findings
 
+All four live in [`docs/`](./docs). They were originally written into `provider-portal-api/docs/`,
+which was wrong twice over: that is a production service, and these describe a throwaway POC. They
+were never committed there, so moving them cost nothing — but the mistake is worth naming, because a
+design document filed against the wrong service is a document the next person will not find.
+
 | Document | What it covers |
 | --- | --- |
-| `provider-portal-api/docs/form-config-poc.md` | the model, the grammar, the DDD decomposition, and §12 the next iteration |
-| `provider-portal-api/docs/form-config-poc-expressiveness-audit.md` | the model measured against two real payer forms |
-| `provider-portal-api/docs/form-config-poc-execution-plan.md` | build order and test plan |
+| [`docs/form-config-poc-findings.md`](./docs/form-config-poc-findings.md) | **start here** — the recommendation, what was proven, and what argues against it |
+| [`docs/form-config-poc.md`](./docs/form-config-poc.md) | the model, the grammar, the DDD decomposition, and §12 the next iteration |
+| [`docs/form-config-poc-expressiveness-audit.md`](./docs/form-config-poc-expressiveness-audit.md) | the model measured against two real payer forms |
+| [`docs/form-config-poc-execution-plan.md`](./docs/form-config-poc-execution-plan.md) | build order and test plan, with its own wrong prediction recorded |
 
 ## Deliberately omitted
 
