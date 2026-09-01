@@ -33,7 +33,13 @@ public final class ExpressionAnalyzer {
         SELF_REFERENCE,
         VALUE_NOT_IN_OPTION_SET,
         UNKNOWN_REPEAT_SCOPE,
-        ITEM_PATH_OUTSIDE_QUANTIFIER
+        ITEM_PATH_OUTSIDE_QUANTIFIER,
+        /**
+         * A question rule reads from another placement of its own section, so every copy would be
+         * gated on one copy's answer. Raised by the compiler rather than here: the analyzer sees
+         * paths and ordinals, not which section a step placed.
+         */
+        CROSS_PLACEMENT_REFERENCE
     }
 
     /**

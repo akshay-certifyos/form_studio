@@ -193,13 +193,18 @@ public class RulesInventory {
             }
         }
 
-        // Which steps place each section, so a question rule can say where it takes effect.
+        // Which steps place each section, twice over: once for display, and once as raw step keys so a
+        // question rule's bare sibling references can be qualified into real answer paths.
         Map<String, List<String>> placementsBySection = new LinkedHashMap<>();
+        Map<String, List<String>> stepKeysBySection = new LinkedHashMap<>();
         for (FormDefinition form : tenantForms) {
             for (Step step : form.steps()) {
                 placementsBySection
                         .computeIfAbsent(step.sectionDefinitionId(), key -> new ArrayList<>())
                         .add(form.name() + " → " + step.key().value());
+                stepKeysBySection
+                        .computeIfAbsent(step.sectionDefinitionId(), key -> new ArrayList<>())
+                        .add(step.key().value());
             }
         }
 
@@ -217,10 +222,7 @@ public class RulesInventory {
                         section.name(),
                         question.key(),
                         question.visibleWhen(),
-                        // Bare scope: a question rule names its siblings by unqualified key, and
-                        // there is no single form to resolve them against — the same section may be
-                        // placed in several.
-                        List.copyOf(ExpressionAnalyzer.referencedPaths(question.visibleWhen(), AnalysisScope.empty())),
+                        qualifiedReads(question, stepKeysBySection.getOrDefault(section.id(), List.of())),
                         wireNames(operators),
                         placementsBySection.getOrDefault(section.id(), List.of())));
             }
@@ -245,6 +247,42 @@ public class RulesInventory {
                 List.copyOf(questionRules),
                 labelsFor(tenantForms, sectionById),
                 summary);
+    }
+
+    /**
+     * A question rule's dependencies as real answer paths, one per placement.
+     *
+     * <p>A question rule names a sibling by bare key, because the section it lives in is reusable and
+     * cannot know the step key it will be placed under. The compiler qualifies that per placement, and
+     * so does this: a section placed twice with a rule reading {@code line1} depends on
+     * {@code practiceLocation.line1} <em>and</em> {@code billingAddress.line1}, and both are true.
+     *
+     * <p>Reporting the bare key instead would be simpler and would break the screen twice: the reverse
+     * index would not find this rule when searching for the answer path it actually reads, and the
+     * label map — keyed by answer path — would have nothing to resolve, so the rule would render as
+     * {@code line1} rather than "Address line 1".
+     *
+     * <p>An unplaced section has nothing to qualify against, so its bare keys are returned as authored.
+     * That is the one case where the path shown is not an answer path, and it is also the case where no
+     * answer exists.
+     */
+    private static List<String> qualifiedReads(QuestionInstance question, List<String> stepKeys) {
+        Set<String> authored = ExpressionAnalyzer.referencedPaths(question.visibleWhen(), AnalysisScope.empty());
+
+        Set<String> out = new LinkedHashSet<>();
+        for (String path : authored) {
+            if (path.indexOf('.') >= 0 || AnalysisScope.isContextPath(path) || AnalysisScope.isItemPath(path)) {
+                // Already an answer path, a context path, or scoped to a repetition. Not a sibling.
+                out.add(path);
+                continue;
+            }
+            if (stepKeys.isEmpty()) {
+                out.add(path);
+                continue;
+            }
+            stepKeys.forEach(stepKey -> out.add(stepKey + "." + path));
+        }
+        return List.copyOf(out);
     }
 
     /**

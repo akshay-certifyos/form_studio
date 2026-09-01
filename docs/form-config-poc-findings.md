@@ -261,7 +261,7 @@ field names, which caps how much automatic matching can achieve.
 | **The rule set is inspectable, including its gaps** | One read returns every step, named and question condition with what each depends on — resolved *through* refs, so a step gated only by a name still reports the question underneath. Unconditioned steps are listed rather than filtered, which is the only way the Florida Blue defect is visible at all |
 | Normalisation pays off, measured | **18 inline option lists collapse to 3**; `yes/no` alone was pasted 14 times |
 
-Test counts: **571** backend, **130** studio, **85** in the grammar package (84 conformance fixtures
+Test counts: **582** backend, **130** studio, **85** in the grammar package (84 conformance fixtures
 plus one guard that the fixture set actually loaded — an empty set would otherwise pass vacuously),
 and **46** browser specs against a live stack. A clean clone of the repository builds and passes.
 
@@ -292,6 +292,35 @@ same registry that drives the condition builder's dropdown, and every worked exa
 shows/hidden verdict is computed live by the same evaluator the conformance suite runs. Documentation
 that restates behaviour in prose is documentation that will eventually lie; this is the cheapest
 available defence.
+
+### A defect this surfaced, and what it says about the method
+
+Asked whether the model supports question-to-question and question-to-section relationships, checking
+rather than answering from the design turned up a real defect — and its shape is more instructive than
+its severity.
+
+**Question rules were not placement-scoped.** Answers were, from the first week, and there is a test
+asserting it. Rules were not. A rule inside a section had to name the placement key
+(`practiceLocation.line1`), which hardcodes a placement into reusable content — so the same section
+placed twice gated **both** copies on the first copy's answer. It compiled clean. The billing
+address's field appeared because of something typed in the practice location.
+
+The cause was not carelessness in either half. The section aggregate and its unit tests were written
+for bare sibling keys and pass. The compiler's scope was keyed only by qualified paths, so a bare key
+failed as `DANGLING_PATH`. The fixtures were then written qualified, to satisfy the compiler. **Two
+halves of one feature, each internally consistent, disagreeing with each other — and no test spanning
+both.** The specification was silent on the one question that would have settled it: how a rule inside
+a reusable section names a sibling.
+
+The compiler now qualifies bare keys per placement, refuses a rule that reaches into another placement
+of its own section, and raises a notice for one that names its own placement key — correct today, and
+no longer reusable. §6 of the design doc now states the addressing rule, since its silence was the
+root cause.
+
+Two things worth taking from it. First, **a passing test suite on each side of a seam proves nothing
+about the seam**; the missing test was the one that compiled a form containing a section that used the
+domain's own convention. Second, the defect was invisible in the fixtures by luck alone — the
+twice-placed section happened to carry no question rules.
 
 ### The gap this table used to hide
 

@@ -618,6 +618,32 @@ practiceLocation.line1        billingAddress.line1
 
 A form composing the catalog's address questions into four sections (practice, billing, remit-to, mailing) produces four independent answers. Without placement scoping they are one slot and the later write destroys the earlier one — a wrong answer, not an awkward one. See §5.6.
 
+**A rule inside a section names a sibling by bare key**, and the compiler qualifies it against the
+step that placed the section:
+
+```
+authored on the section        compiled, placed as practiceLocation
+{ "field": "line1", ... }  ->  { "field": "practiceLocation.line1", ... }
+```
+
+This is not a shorthand, it is the only correct form. A section is reusable and cannot know the step
+key it will be placed under — that is chosen at placement time, and the same section may be placed
+twice. A rule that hardcodes `practiceLocation.line1` compiles clean and gates *both* copies on the
+practice location's answer, so the billing address's field appears because of something typed in a
+different section. The compiler now refuses that (`CROSS_PLACEMENT_REFERENCE`) and raises a notice
+for the milder case of a rule naming its own current placement, which works but stops the section
+being reusable.
+
+A **dotted** path in a question rule therefore means a genuine cross-section reference — a question
+in Licensure gated on an answer in Applicant Details — which is legitimate and common. Context paths
+(`viewer.role`) and `@item.` paths are left alone, having no placement to belong to.
+
+> This paragraph did not exist, and its absence was the root cause of a real defect. The section
+> aggregate and its unit tests were written for bare keys; the compiler's scope was keyed only by
+> qualified paths, so a bare key failed as `DANGLING_PATH`; the fixtures were then written qualified
+> to satisfy the compiler. Two halves of one feature, each guessing, and no test spanning both. The
+> specification owed them an answer and did not give one.
+
 Inside a repeating scope, `@item.` addresses the current repetition:
 
 ```json
@@ -626,6 +652,10 @@ Inside a repeating scope, `@item.` addresses the current repetition:
 ```
 
 Rules of the form *"if **any** license expires within 90 days"* are common in credentialing and are unrepresentable without a quantifier.
+
+A bare path nested inside a `some`/`every` still qualifies to the step that placed the section, not to
+the repetition — `@item.` is how a repetition is addressed. That is a choice rather than a
+consequence, so it is stated rather than left to be discovered.
 
 ### Named conditions
 

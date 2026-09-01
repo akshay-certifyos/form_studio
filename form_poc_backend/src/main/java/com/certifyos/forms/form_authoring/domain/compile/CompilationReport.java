@@ -68,7 +68,12 @@ public record CompilationReport(List<Problem> problems, List<Notice> notices) {
             /** A step restricted to certain viewer roles will be shown to everyone. */
             AUDIENCE_RULE_NOT_COMPILED,
             /** A question with child inputs emits only the parent; the children are absent. */
-            GROUPED_QUESTION_NOT_COMPILED
+            GROUPED_QUESTION_NOT_COMPILED,
+            /**
+             * A question rule hardcodes its own placement key. Correct today, and not reusable: the
+             * section breaks the moment it is placed under a different key.
+             */
+            PLACEMENT_KEY_IN_QUESTION_RULE
         }
     }
 

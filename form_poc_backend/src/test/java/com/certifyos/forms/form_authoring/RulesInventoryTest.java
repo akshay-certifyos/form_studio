@@ -196,6 +196,84 @@ class RulesInventoryTest {
         }
 
         @Test
+        @DisplayName("a bare sibling reference is reported as a real answer path, once per placement")
+        void qualifiesBareSiblingReads() {
+            seedRecred();
+            sections.with(new SectionDefinition(
+                    "sd_address",
+                    TENANT,
+                    "address",
+                    "Address",
+                    null,
+                    null,
+                    null,
+                    // Bare, as a reusable section must be: it cannot know its placement key.
+                    List.of(instance("line1", "q_line1", null), questionWithRule("line2", "line1")),
+                    true));
+
+            FormDefinition form = forms.findById("fd_recred").orElseThrow();
+            forms.save(form.placeStep(Step.of("practiceLocation", "sd_address", 40))
+                    .placeStep(Step.of("billingAddress", "sd_address", 50)));
+
+            RulesInventory.QuestionRule rule = inventory.of(TENANT).questions().stream()
+                    .filter(q -> q.questionKey().equals("line2"))
+                    .findFirst()
+                    .orElseThrow();
+
+            // Both are true, and both matter: reporting the bare key would break the reverse index
+            // (searching for practiceLocation.line1 would not find this rule) and would leave the
+            // label map — keyed by answer path — with nothing to resolve.
+            assertEquals(List.of("practiceLocation.line1", "billingAddress.line1"), rule.reads());
+        }
+
+        @Test
+        @DisplayName("an unplaced section's bare key is returned as authored, there being no answer")
+        void unplacedSectionKeepsBareKeys() {
+            seedRecred();
+            sections.with(new SectionDefinition(
+                    "sd_orphan",
+                    TENANT,
+                    "orphan",
+                    "Orphan",
+                    null,
+                    null,
+                    null,
+                    List.of(instance("a", "q_a", null), questionWithRule("b", "a")),
+                    true));
+
+            RulesInventory.QuestionRule rule = inventory.of(TENANT).questions().stream()
+                    .filter(q -> q.questionKey().equals("b"))
+                    .findFirst()
+                    .orElseThrow();
+
+            assertEquals(List.of("a"), rule.reads());
+            assertTrue(rule.placedInSteps().isEmpty());
+        }
+
+        @Test
+        @DisplayName("a cross-section reference is left qualified, being an answer path already")
+        void crossSectionReadKeptAsIs() {
+            seedRecred();
+            sections.with(new SectionDefinition(
+                    "sd_dea",
+                    TENANT,
+                    "dea",
+                    "DEA Registration",
+                    null,
+                    null,
+                    null,
+                    List.of(questionWithRule("deaNumber", "applicantDetails.specialty")),
+                    true));
+
+            RulesInventory.QuestionRule rule = inventory.of(TENANT).questions().stream()
+                    .filter(q -> q.questionKey().equals("deaNumber"))
+                    .findFirst()
+                    .orElseThrow();
+
+            assertEquals(List.of("applicantDetails.specialty"), rule.reads());
+        }
+
+        @Test
         @DisplayName("a question with no rule is not listed — unlike a step")
         void skipsUnconditionedQuestions() {
             seedRecred();
@@ -366,6 +444,10 @@ class RulesInventoryTest {
                                 .withVisibleWhen(new Expression.Not(new Expression.Ref("specialtyExempt")))),
                 List.of(),
                 FormDefinition.DefinitionStatus.DRAFT));
+    }
+
+    private static QuestionInstance questionWithRule(String key, String reads) {
+        return question(key, new Expression.Leaf(reads, Operator.EXISTS, null));
     }
 
     private static QuestionInstance instance(String key, String catalogId, String labelOverride) {

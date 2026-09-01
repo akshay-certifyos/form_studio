@@ -4,6 +4,7 @@ import com.certifyos.forms.form_authoring.domain.definition.FormDefinition;
 import com.certifyos.forms.form_authoring.domain.definition.QuestionInstance;
 import com.certifyos.forms.form_authoring.domain.definition.SectionDefinition;
 import com.certifyos.forms.form_authoring.domain.definition.Step;
+import com.certifyos.forms.form_authoring.domain.definition.StepKey;
 import com.certifyos.forms.form_authoring.domain.publishing.CompiledForm;
 import com.certifyos.forms.question_catalog.domain.OptionSet;
 import com.certifyos.forms.question_catalog.domain.Question;
@@ -84,6 +85,11 @@ public final class FormCompiler {
         List<Step> steps = definition.orderedSteps();
         List<CompiledForm.CompiledStep> compiledSteps = new ArrayList<>();
 
+        // Which section each step placed. Needed to catch a question rule reaching into another
+        // placement of its own section — see reportPlacementHazards.
+        Map<String, String> sectionByStepKey = new LinkedHashMap<>();
+        steps.forEach(s -> sectionByStepKey.put(s.key().value(), s.sectionDefinitionId()));
+
         for (int ordinal = 0; ordinal < steps.size(); ordinal++) {
             Step step = steps.get(ordinal);
             SectionDefinition section = sections.get(step.sectionDefinitionId());
@@ -113,7 +119,7 @@ public final class FormCompiler {
                                 + "everyone filling the form will see it."));
             }
 
-            compiledSteps.add(compileStep(step, section, ordinal, scope, catalog, problems, notices));
+            compiledSteps.add(compileStep(step, section, ordinal, scope, catalog, sectionByStepKey, problems, notices));
         }
 
         CompiledForm artifact = new CompiledForm(definition.name(), null, compiledSteps, null);
@@ -205,6 +211,151 @@ public final class FormCompiler {
         return inline(expression, named, Set.of());
     }
 
+    /**
+     * Resolves a question rule's bare paths against the step that placed it.
+     *
+     * <p>A section is reusable, so a rule inside one cannot know the step key it will be placed
+     * under — that is chosen at placement time, and the same section may be placed twice. So a rule
+     * addresses a sibling by bare key ({@code boardCertified}) and the compiler qualifies it here,
+     * per placement, into {@code applicantDetails.boardCertified}.
+     *
+     * <p>This closes a gap where the two halves of the feature were built on opposite assumptions.
+     * {@code SectionDefinition.externalRefs} and its unit tests were written for bare keys; the scope
+     * was keyed only by qualified ones, so a bare key compiled to {@code DANGLING_PATH}. The fixtures
+     * were then written qualified to satisfy the compiler — which hardcodes a placement key into
+     * reusable content, and makes a section placed twice read the first placement's answers in both.
+     *
+     * <p>Three path shapes are left alone, and each for a different reason:
+     *
+     * <ul>
+     *   <li><b>Already qualified</b> — a genuine cross-section reference, which is legitimate and
+     *       common: a question in Licensure gated on an answer in Applicant Details.
+     *   <li><b>Context paths</b> ({@code viewer.role}) — not answers, so they have no placement.
+     *   <li><b>{@code @item.} paths</b> — already scoped to the current repetition.
+     * </ul>
+     *
+     * <p>A bare path nested inside a {@code some}/{@code every} still qualifies to the owning step
+     * rather than to the repetition, because {@code @item.} is how a repetition is addressed. That is
+     * a choice rather than a consequence, so it is stated here.
+     */
+    /**
+     * Flags a question rule that names a placement key rather than a sibling.
+     *
+     * <p>Two shapes, and the severity differs because the consequences do.
+     *
+     * <p><b>A problem: reaching into another placement of this same section.</b> The address section
+     * placed as Practice Location and Billing Address, with a rule inside it reading
+     * {@code practiceLocation.line1}, compiles perfectly and gates <em>both</em> copies on the
+     * practice location's answer. The billing address's field then appears because of something the
+     * provider typed somewhere else — a wrong answer, not an awkward one, and invisible in the
+     * artifact unless you read both steps side by side. This is the case that motivated qualifying
+     * bare keys in the first place, so it is refused rather than merely noted.
+     *
+     * <p><b>A notice: naming its own current placement.</b> {@code applicantDetails.boardCertified}
+     * inside the section placed as {@code applicantDetails} works today and produces the right
+     * artifact. But it has quietly stopped being reusable: place the section under any other key and
+     * the rule dangles. Worth telling an author, not worth refusing, since nothing is wrong yet.
+     *
+     * <p>Both are computed from the resolved expression against the authored one, which is why the
+     * caller passes the resolved form: a bare key qualifies to exactly this step, so it can never
+     * trip either check.
+     */
+    private static void reportPlacementHazards(
+            Step step,
+            QuestionInstance instance,
+            Expression resolved,
+            Map<String, String> sectionByStepKey,
+            List<CompilationReport.Problem> problems,
+            List<CompilationReport.Notice> notices) {
+
+        Set<String> authored = literalPaths(instance.visibleWhen());
+
+        for (String path : literalPaths(resolved)) {
+            int dot = path.indexOf('.');
+            if (dot <= 0 || AnalysisScope.isItemPath(path) || AnalysisScope.isContextPath(path)) {
+                continue;
+            }
+            String referencedStep = path.substring(0, dot);
+            if (referencedStep.equals(step.key().value())) {
+                // Only a hazard if the author wrote the prefix themselves; a qualified bare key is
+                // this compiler's own doing and carries no risk.
+                if (authored.contains(path)) {
+                    notices.add(new CompilationReport.Notice(
+                            step.key().value(),
+                            instance.key(),
+                            CompilationReport.Notice.Code.PLACEMENT_KEY_IN_QUESTION_RULE,
+                            "This question's rule names the step key \"" + referencedStep
+                                    + "\" instead of the question alone, so the section only works while it is "
+                                    + "placed under that key. Drop the prefix to make it reusable."));
+                }
+                continue;
+            }
+            if (step.sectionDefinitionId().equals(sectionByStepKey.get(referencedStep))) {
+                problems.add(new CompilationReport.Problem(
+                        step.key().value(),
+                        instance.key(),
+                        ExpressionAnalyzer.Code.CROSS_PLACEMENT_REFERENCE,
+                        "This question's rule reads from \"" + referencedStep
+                                + "\", which is another placement of this same section — so both copies would be "
+                                + "gated on one copy's answer. Drop the prefix to mean this placement's own "
+                                + "question.",
+                        path));
+            }
+        }
+    }
+
+    private static Expression qualify(Expression expression, StepKey owner) {
+        if (expression == null) {
+            return null;
+        }
+        return switch (expression) {
+            case Expression.All all -> new Expression.All(
+                    all.operands().stream().map(e -> qualify(e, owner)).toList());
+            case Expression.Any any -> new Expression.Any(
+                    any.operands().stream().map(e -> qualify(e, owner)).toList());
+            case Expression.Not not -> new Expression.Not(qualify(not.operand(), owner));
+            case Expression.Some some -> new Expression.Some(some.scope(), qualify(some.where(), owner));
+            case Expression.Every every -> new Expression.Every(every.scope(), qualify(every.where(), owner));
+                // A ref names a form-level condition, which is authored against the whole form and is
+                // therefore already qualified. Rewriting inside it would be wrong twice: it is not this
+                // section's to interpret, and the same condition may be referenced from several steps.
+            case Expression.Ref ref -> ref;
+            case Expression.Leaf leaf -> needsQualifying(leaf.path())
+                    ? new Expression.Leaf(owner.pathFor(leaf.path()), leaf.operator(), leaf.value())
+                    : leaf;
+        };
+    }
+
+    private static boolean needsQualifying(String path) {
+        return path != null
+                && !path.isBlank()
+                && path.indexOf('.') < 0
+                && !AnalysisScope.isItemPath(path)
+                && !AnalysisScope.isContextPath(path);
+    }
+
+    /** Leaf paths an expression names literally, without following refs. */
+    private static Set<String> literalPaths(Expression expression) {
+        Set<String> paths = new LinkedHashSet<>();
+        collectLiteralPaths(expression, paths);
+        return paths;
+    }
+
+    private static void collectLiteralPaths(Expression expression, Set<String> paths) {
+        if (expression == null) {
+            return;
+        }
+        switch (expression) {
+            case Expression.Leaf leaf -> paths.add(leaf.path());
+            case Expression.Not not -> collectLiteralPaths(not.operand(), paths);
+            case Expression.All all -> all.operands().forEach(e -> collectLiteralPaths(e, paths));
+            case Expression.Any any -> any.operands().forEach(e -> collectLiteralPaths(e, paths));
+            case Expression.Some some -> collectLiteralPaths(some.where(), paths);
+            case Expression.Every every -> collectLiteralPaths(every.where(), paths);
+            case Expression.Ref ignored -> {}
+        }
+    }
+
     // ------------------------------------------------------------------
     // steps and fields
     // ------------------------------------------------------------------
@@ -215,6 +366,7 @@ public final class FormCompiler {
             int ordinal,
             AnalysisScope scope,
             CatalogSnapshot catalog,
+            Map<String, String> sectionByStepKey,
             List<CompilationReport.Problem> problems,
             List<CompilationReport.Notice> notices) {
 
@@ -231,8 +383,13 @@ public final class FormCompiler {
                         instance.catalogQuestionId().value()));
                 continue;
             }
-            for (ExpressionAnalyzer.Finding finding : ExpressionAnalyzer.analyze(
-                    instance.visibleWhen(), ordinal, scope, ExpressionAnalyzer.Level.QUESTION)) {
+            // Bare sibling keys resolve against this placement, so a section placed twice gates
+            // each copy on its own answers.
+            Expression resolved = qualify(instance.visibleWhen(), step.key());
+            reportPlacementHazards(step, instance, resolved, sectionByStepKey, problems, notices);
+
+            for (ExpressionAnalyzer.Finding finding :
+                    ExpressionAnalyzer.analyze(resolved, ordinal, scope, ExpressionAnalyzer.Level.QUESTION)) {
                 problems.add(CompilationReport.Problem.at(step.key().value(), instance.key(), finding));
             }
             Question question = catalogEntry.get();
@@ -247,7 +404,7 @@ public final class FormCompiler {
                                 + "only the parent question."));
             }
 
-            fields.add(compileField(step, instance, question, catalog, scope.namedConditions()));
+            fields.add(compileField(step, instance, resolved, question, catalog, scope.namedConditions()));
         }
 
         return new CompiledForm.CompiledStep(
@@ -263,6 +420,7 @@ public final class FormCompiler {
     private static CompiledForm.CompiledField compileField(
             Step step,
             QuestionInstance instance,
+            Expression resolvedVisibleWhen,
             Question question,
             CatalogSnapshot catalog,
             Map<String, Expression> namedConditions) {
@@ -281,8 +439,8 @@ public final class FormCompiler {
                 // Production's own simple-visibility mechanism. Emitted for the "parent is
                 // answered" shape so existing forms stay round-trippable; richer rules use
                 // `condition` instead.
-                dependsOnFor(step, instance),
-                toJson(inline(instance.visibleWhen(), namedConditions)),
+                dependsOnFor(step, resolvedVisibleWhen),
+                toJson(inline(resolvedVisibleWhen, namedConditions)),
                 null,
                 null,
                 null);
@@ -309,8 +467,11 @@ public final class FormCompiler {
      * is how every conditional field in the production config is expressed. Anything richer stays
      * in {@code condition}.
      */
-    private static String dependsOnFor(Step step, QuestionInstance instance) {
-        if (!(instance.visibleWhen() instanceof Expression.Leaf leaf)) {
+    private static String dependsOnFor(Step step, Expression resolvedVisibleWhen) {
+        // The resolved expression, not the authored one. Before bare keys were qualified, a rule
+        // written against one placement emitted `dependsOn` there and null in the other — the
+        // compiler knew the second was cross-step and said nothing about it.
+        if (!(resolvedVisibleWhen instanceof Expression.Leaf leaf)) {
             return null;
         }
         if (leaf.operator() != Operator.EXISTS) {

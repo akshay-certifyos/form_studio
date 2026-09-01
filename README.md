@@ -45,7 +45,7 @@ form_poc/
 | `certifyos-frontend/packages/form-expression` | the TypeScript half of the grammar |
 | `certifyos-frontend/packages/form-studio-tests` | Playwright verification against a live stack |
 
-Test counts: **571** backend, **130** studio, **85** in the grammar package, **46** browser specs.
+Test counts: **582** backend, **130** studio, **85** in the grammar package, **46** browser specs.
 
 ## Running it
 
@@ -60,7 +60,7 @@ brew services start mongodb-community    # :27017
 
 cd form_poc_backend
 make dev        # :9100, seeds fixtures on startup
-make test       # 571 tests, no Mongo and no Docker needed
+make test       # 582 tests, no Mongo and no Docker needed
 make check      # format check + tests + ArchUnit
 ```
 

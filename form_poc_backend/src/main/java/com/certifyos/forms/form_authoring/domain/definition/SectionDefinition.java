@@ -136,16 +136,19 @@ public record SectionDefinition(
      * makes conditional forms miserable to debug.
      */
     public Set<String> externalRefs() {
-        Set<String> own = new LinkedHashSet<>();
-        questions.forEach(q -> own.add(q.key()));
-
         Set<String> external = new LinkedHashSet<>();
         AnalysisScope scope = AnalysisScope.empty();
         for (QuestionInstance q : questions) {
             for (String path : ExpressionAnalyzer.referencedPaths(q.visibleWhen(), scope)) {
-                // Inside a section definition, a condition names a sibling by bare key; anything
-                // dotted is already a cross-step reference and belongs to the placement.
-                if (!own.contains(path)) {
+                // A dotted path is a cross-section reference and therefore this section's contract.
+                // A bare key names a sibling, which the compiler qualifies against the placement.
+                //
+                // The distinction is the whole computation, and it used to be stated in a comment
+                // here while the code tested `!own.contains(path)` instead — which also reported a
+                // bare key naming a question the section does not have. That is a typo, not a
+                // dependency, and calling it a dependency sends an author to supply a question when
+                // what they need to do is fix a name. The compiler catches it as DANGLING_PATH.
+                if (path.indexOf('.') > 0 && !AnalysisScope.isContextPath(path) && !AnalysisScope.isItemPath(path)) {
                     external.add(path);
                 }
             }

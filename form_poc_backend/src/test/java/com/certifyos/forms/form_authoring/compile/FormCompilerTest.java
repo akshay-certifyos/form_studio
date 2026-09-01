@@ -1,6 +1,7 @@
 package com.certifyos.forms.form_authoring.compile;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -8,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.certifyos.forms.form_authoring.domain.compile.CatalogSnapshot;
 import com.certifyos.forms.form_authoring.domain.compile.CompilationFailedException;
+import com.certifyos.forms.form_authoring.domain.compile.CompilationReport;
 import com.certifyos.forms.form_authoring.domain.compile.FormCompiler;
 import com.certifyos.forms.form_authoring.domain.definition.FormDefinition;
 import com.certifyos.forms.form_authoring.domain.definition.Layout;
@@ -269,6 +271,168 @@ class FormCompilerTest {
             // The bug this prevents: without step scoping both would be "line1", and a provider
             // entering a billing address would silently overwrite their practice address.
             assertTrue(java.util.Collections.disjoint(practice, billing));
+        }
+
+        /**
+         * The tests below cover the half this class used to miss.
+         *
+         * <p>Answer namespaces were scoped per placement from the start, and asserted above. Question
+         * <em>rules</em> were not, and nothing here noticed — because the two halves of that feature
+         * were built on opposite assumptions and no test spanned both. {@code SectionDefinition} and
+         * its unit tests address a sibling by bare key; the compiler's scope was keyed only by
+         * qualified paths, so a bare key compiled to {@code DANGLING_PATH}; and the fixtures were
+         * then written qualified to satisfy the compiler — which hardcodes a placement key into
+         * reusable content.
+         */
+        @Test
+        @DisplayName("a question rule names a sibling by bare key, and resolves to this placement")
+        void bareSiblingKeyResolves() {
+            var section = addressWithRule(new Expression.Leaf("line1", Operator.EXISTS, null));
+            var definition = form().placeStep(Step.of("practiceLocation", "sd_address", 10));
+
+            var artifact = FormCompiler.compile(definition, sectionsWith(section), catalog());
+            var line2 = fieldNamed(artifact, 0, "practiceLocation.line2");
+
+            assertEquals(
+                    "practiceLocation.line1",
+                    line2.condition().get("field").asText(),
+                    "a bare key must resolve against the step that placed the section");
+        }
+
+        @Test
+        @DisplayName("placed twice, each copy's rule reads its own answer — not the first placement's")
+        void ruleResolvesPerPlacement() {
+            var section = addressWithRule(new Expression.Leaf("line1", Operator.EXISTS, null));
+            var definition = form().placeStep(Step.of("practiceLocation", "sd_address", 10))
+                    .placeStep(Step.of("billingAddress", "sd_address", 20));
+
+            var artifact = FormCompiler.compile(definition, sectionsWith(section), catalog());
+
+            // The defect this closes: with the rule authored as `practiceLocation.line1`, both copies
+            // compiled clean and both were gated on the practice location's answer — so the billing
+            // address's field appeared because of something typed in a different section.
+            assertEquals(
+                    "practiceLocation.line1",
+                    fieldNamed(artifact, 0, "practiceLocation.line2")
+                            .condition()
+                            .get("field")
+                            .asText());
+            assertEquals(
+                    "billingAddress.line1",
+                    fieldNamed(artifact, 1, "billingAddress.line2")
+                            .condition()
+                            .get("field")
+                            .asText());
+        }
+
+        @Test
+        @DisplayName("dependsOn is emitted for every placement, not just the first")
+        void dependsOnSurvivesBothPlacements() {
+            var section = addressWithRule(new Expression.Leaf("line1", Operator.EXISTS, null));
+            var definition = form().placeStep(Step.of("practiceLocation", "sd_address", 10))
+                    .placeStep(Step.of("billingAddress", "sd_address", 20));
+
+            var artifact = FormCompiler.compile(definition, sectionsWith(section), catalog());
+
+            // Previously null on the second placement, because the path did not start with that
+            // step's prefix. The compiler knew the reference was cross-step and said nothing.
+            assertEquals(
+                    "line1", fieldNamed(artifact, 0, "practiceLocation.line2").dependsOn());
+            assertEquals(
+                    "line1", fieldNamed(artifact, 1, "billingAddress.line2").dependsOn());
+        }
+
+        @Test
+        @DisplayName("a rule reaching into another placement of its own section fails compilation")
+        void crossPlacementReferenceIsRefused() {
+            var section = addressWithRule(new Expression.Leaf("practiceLocation.line1", Operator.EXISTS, null));
+            var definition = form().placeStep(Step.of("practiceLocation", "sd_address", 10))
+                    .placeStep(Step.of("billingAddress", "sd_address", 20));
+
+            var report = FormCompiler.analyze(definition, sectionsWith(section), catalog())
+                    .report();
+
+            assertFalse(report.isClean(), "this compiled clean before, and gated both copies on one answer");
+            assertTrue(
+                    report.problems().stream()
+                            .anyMatch(problem -> problem.code() == ExpressionAnalyzer.Code.CROSS_PLACEMENT_REFERENCE),
+                    "expected CROSS_PLACEMENT_REFERENCE, got " + report.problems());
+        }
+
+        @Test
+        @DisplayName("a rule naming its own placement key is a notice: correct today, no longer reusable")
+        void ownPlacementKeyIsNoticed() {
+            var section = addressWithRule(new Expression.Leaf("practiceLocation.line1", Operator.EXISTS, null));
+            var definition = form().placeStep(Step.of("practiceLocation", "sd_address", 10));
+
+            var report = FormCompiler.analyze(definition, sectionsWith(section), catalog())
+                    .report();
+
+            // Placed once, so nothing is wrong — but the section now breaks under any other key, and
+            // an author should hear that while it is still cheap to fix.
+            assertTrue(report.isClean(), "nothing is actually wrong yet");
+            assertTrue(
+                    report.notices().stream()
+                            .anyMatch(notice ->
+                                    notice.code() == CompilationReport.Notice.Code.PLACEMENT_KEY_IN_QUESTION_RULE),
+                    "expected a reusability notice, got " + report.notices());
+        }
+
+        @Test
+        @DisplayName("a genuine cross-section reference is untouched — that is the legitimate case")
+        void crossSectionReferenceStillWorks() {
+            var section = addressWithRule(new Expression.Leaf("applicant.npi", Operator.EXISTS, null));
+            var definition = form().placeStep(Step.of("applicant", "sd_applicant", 10))
+                    .placeStep(Step.of("practiceLocation", "sd_address", 20));
+
+            var artifact = FormCompiler.compile(definition, sectionsWith(section), catalog());
+
+            // A question in one section gated on an answer in an earlier one is common and correct.
+            // The guard must not catch it: the referenced step placed a *different* section.
+            assertEquals(
+                    "applicant.npi",
+                    fieldNamed(artifact, 1, "practiceLocation.line2")
+                            .condition()
+                            .get("field")
+                            .asText());
+        }
+
+        @Test
+        @DisplayName("a context path is left alone, having no placement to belong to")
+        void contextPathUntouched() {
+            var section = addressWithRule(new Expression.Leaf("viewer.role", Operator.EQ, "admin"));
+            var definition = form().placeStep(Step.of("practiceLocation", "sd_address", 10));
+
+            var artifact = FormCompiler.compile(definition, sectionsWith(section), catalog());
+
+            assertEquals(
+                    "viewer.role",
+                    fieldNamed(artifact, 0, "practiceLocation.line2")
+                            .condition()
+                            .get("field")
+                            .asText());
+        }
+
+        // ---- fixture -------------------------------------------------
+
+        /** The address section with a third question carrying the rule under test. */
+        private static SectionDefinition addressWithRule(Expression rule) {
+            return address()
+                    .addQuestion(QuestionInstance.fromTemplate("line2", CITY, 30, false)
+                            .withVisibleWhen(rule));
+        }
+
+        private static Map<String, SectionDefinition> sectionsWith(SectionDefinition address) {
+            Map<String, SectionDefinition> all = new java.util.LinkedHashMap<>(sections());
+            all.put(address.id(), address);
+            return all;
+        }
+
+        private static CompiledForm.CompiledField fieldNamed(CompiledForm artifact, int step, String name) {
+            return artifact.steps().get(step).fields().stream()
+                    .filter(field -> field.name().equals(name))
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError("no field " + name + " in step " + step));
         }
     }
 

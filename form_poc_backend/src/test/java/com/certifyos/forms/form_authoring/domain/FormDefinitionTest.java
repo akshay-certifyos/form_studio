@@ -280,13 +280,41 @@ class FormDefinitionTest {
                             Layout.HALF,
                             null,
                             null,
+                            new Expression.Leaf("billingSetup.hasCaqhId", Operator.EQ, "Yes"),
+                            null,
+                            null,
+                            null));
+
+            // Dotted, because that is what a cross-section reference looks like: the section is
+            // declaring that a form placing it must also carry billingSetup.
+            assertEquals(java.util.Set.of("billingSetup.hasCaqhId"), section.externalRefs());
+            assertFalse(section.isSelfContained());
+        }
+
+        @Test
+        @DisplayName("a bare key naming a question the section lacks is a typo, not a dependency")
+        void bareKeyIsNotAContract() {
+            var section = address()
+                    .addQuestion(new QuestionInstance(
+                            "billingFax",
+                            QuestionId.of("q_fax"),
+                            Origin.ADDED,
+                            true,
+                            30,
+                            false,
+                            Layout.HALF,
+                            null,
+                            null,
                             new Expression.Leaf("hasCaqhId", Operator.EQ, "Yes"),
                             null,
                             null,
                             null));
 
-            assertEquals(java.util.Set.of("hasCaqhId"), section.externalRefs());
-            assertFalse(section.isSelfContained());
+            // A bare key means "my sibling". This section has no `hasCaqhId`, so the rule is broken —
+            // and reporting it as an external requirement would tell an author to supply a question
+            // when what they need to do is fix a name. The compiler reports DANGLING_PATH instead.
+            assertTrue(section.externalRefs().isEmpty());
+            assertTrue(section.isSelfContained());
         }
 
         @Test
